@@ -1,33 +1,24 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
   const cat = searchParams.get("cat");
   const item = searchParams.get("item");
 
-  if (!cat || !item) {
-    return NextResponse.json({ diameters: [] });
-  }
-
   const { data, error } = await supabase
     .from("stock")
-    .select("diam_value, diam_display")
+    .select("diam_display")
     .eq("cat", cat)
-    .eq("item", item)
-    .not("diam_value", "is", null)
-    .order("diam_value", { ascending: true });
+    .eq("item", item);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Remove duplicates
-  const unique = Array.from(
-    new Map(
-      data.map((r) => [r.diam_value, r])
-    ).values()
-  );
+  const unique = [...new Set(data.map(row => row.diam_display).filter(Boolean))];
 
-  return NextResponse.json({ diameters: unique });
+  return NextResponse.json({
+    diameters: unique.map(d => ({ diam_display: d }))
+  });
 }
