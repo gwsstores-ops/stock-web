@@ -108,7 +108,9 @@ export default function Page() {
         return;
       }
 
-      setLengths(list.sort((a, b) => Number(a) - Number(b)));
+      setLengths(
+  list.sort((a: string, b: string) => Number(a) - Number(b))
+);
 
       if (list.length === 1) {
         setLength(list[0]);
