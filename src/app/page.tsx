@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 type Row = {
   id: number;
@@ -8,7 +8,7 @@ type Row = {
   area: string;
   item: string;
   size: string;
-  qty: number;
+  qty: number | null;
 };
 
 export default function Page() {
@@ -23,16 +23,24 @@ export default function Page() {
   const [lengths, setLengths] = useState<string[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
 
+  const itemRef = useRef<HTMLSelectElement>(null);
+  const diamRef = useRef<HTMLSelectElement>(null);
+  const lengthRef = useRef<HTMLSelectElement>(null);
+  const catRef = useRef<HTMLSelectElement>(null);
+
   const allowedAreas = ["GWS", "W3", "W4"];
 
+  // Load categories
   useEffect(() => {
     fetch("/api/categories")
       .then(res => res.json())
       .then(data => setCategories(data.categories || []));
   }, []);
 
+  // When category changes
   useEffect(() => {
     if (!cat) return;
+
     setItem("");
     setDiam("");
     setLength("");
@@ -40,38 +48,67 @@ export default function Page() {
 
     fetch(`/api/items?cat=${cat}`)
       .then(res => res.json())
-      .then(data => setItems(data.items || []));
+      .then(data => {
+        const list = data.items || [];
+        setItems(list);
+
+        if (list.length === 1) {
+          setItem(list[0]);
+          setTimeout(() => itemRef.current?.focus(), 100);
+        }
+      });
   }, [cat]);
 
+  // When item changes
   useEffect(() => {
     if (!item) return;
+
     setDiam("");
     setLength("");
     setRows([]);
 
     fetch(`/api/diameters?cat=${cat}&item=${item}`)
       .then(res => res.json())
-      .then(data =>
-        setDiameters(
-          (data.diameters || []).map((d: any) => d.diam_display)
-        )
-      );
+      .then(data => {
+        const list = (data.diameters || []).map(
+          (d: any) => d.diam_display
+        );
+
+        const sorted = list.sort((a, b) => Number(a) - Number(b));
+	setDiameters(sorted);
+
+        if (list.length === 1) {
+          setDiam(list[0]);
+          setTimeout(() => diamRef.current?.focus(), 100);
+        }
+      });
   }, [item]);
 
+  // When diameter changes
   useEffect(() => {
     if (!diam) return;
+
     setLength("");
     setRows([]);
 
     fetch(`/api/lengths?cat=${cat}&item=${item}&diam=${diam}`)
       .then(res => res.json())
-      .then(data =>
-        setLengths(
-          (data.lengths || []).map((l: any) => l.length_display)
-        )
-      );
+      .then(data => {
+        const list = (data.lengths || []).map(
+          (l: any) => l.length_display
+        );
+
+        const sorted = list.sort((a, b) => Number(a) - Number(b));
+	setLengths(sorted);
+
+        if (list.length === 1) {
+          setLength(list[0]);
+          setTimeout(() => lengthRef.current?.focus(), 100);
+        }
+      });
   }, [diam]);
 
+  // When length changes → fetch results
   useEffect(() => {
     if (!length) return;
 
@@ -89,17 +126,28 @@ export default function Page() {
     return "";
   };
 
-  // 🔹 Filter first
-  const filteredRows = rows.filter(row =>
-    allowedAreas.includes(row.area)
+  const filteredRows = rows.filter(
+    row => allowedAreas.includes(row.area)
   );
 
-  // 🔹 Then group
   const grouped = filteredRows.reduce((acc: any, row) => {
     if (!acc[row.area]) acc[row.area] = [];
     acc[row.area].push(row);
     return acc;
   }, {});
+
+  const resetAll = () => {
+    setCat("");
+    setItem("");
+    setDiam("");
+    setLength("");
+    setItems([]);
+    setDiameters([]);
+    setLengths([]);
+    setRows([]);
+
+    setTimeout(() => catRef.current?.focus(), 100);
+  };
 
   return (
     <div style={{ padding: 40, maxWidth: 700, margin: "0 auto" }}>
@@ -111,33 +159,63 @@ export default function Page() {
 
       {/* DROPDOWNS */}
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <select value={cat} onChange={e => setCat(e.target.value)}>
+
+        <select
+          ref={catRef}
+          value={cat}
+          onChange={e => setCat(e.target.value)}
+        >
           <option value="">Select Category</option>
           {categories.map(c => (
             <option key={c}>{c}</option>
           ))}
         </select>
 
-        <select value={item} onChange={e => setItem(e.target.value)}>
+        <select
+          ref={itemRef}
+          value={item}
+          onChange={e => setItem(e.target.value)}
+        >
           <option value="">Select Item</option>
           {items.map(i => (
             <option key={i}>{i}</option>
           ))}
         </select>
 
-        <select value={diam} onChange={e => setDiam(e.target.value)}>
+        <select
+          ref={diamRef}
+          value={diam}
+          onChange={e => setDiam(e.target.value)}
+        >
           <option value="">Select Diameter</option>
           {diameters.map(d => (
             <option key={d}>{d}</option>
           ))}
         </select>
 
-        <select value={length} onChange={e => setLength(e.target.value)}>
+        <select
+          ref={lengthRef}
+          value={length}
+          onChange={e => setLength(e.target.value)}
+        >
           <option value="">Select Length</option>
           {lengths.map(l => (
             <option key={l}>{l}</option>
           ))}
         </select>
+
+        <button
+          onClick={resetAll}
+          style={{
+            marginTop: 10,
+            padding: "8px 12px",
+            backgroundColor: "#eee",
+            border: "1px solid #ccc",
+            cursor: "pointer"
+          }}
+        >
+          Reset
+        </button>
       </div>
 
       {/* TITLE */}
@@ -151,30 +229,33 @@ export default function Page() {
 
       {/* RESULTS */}
       <div>
-        {Object.keys(grouped).map(area => (
-          <div key={area} style={{ marginBottom: 35 }}>
+        {["GWS", "W3", "W4"]
+          .filter(area => grouped[area])
+          .map(area => (
+            <div key={area} style={{ marginBottom: 35 }}>
+              <div style={{ marginBottom: 10 }}>
+                <img src={areaIcon(area)} width={50} />
+              </div>
 
-            <div style={{ marginBottom: 10 }}>
-              <img src={areaIcon(area)} width={50} />
+              {grouped[area]
+                .sort((a: Row, b: Row) =>
+                  a.location.localeCompare(b.location)
+                )
+                .map(row => (
+                  <div
+                    key={row.id}
+                    style={{
+                      padding: "6px 0",
+                      fontSize: 16
+                    }}
+                  >
+                    {row.location} → QTY:{" "}
+                    <strong>
+                      {(row.qty ?? 0).toLocaleString()}
+                    </strong>
+                  </div>
+                ))}
             </div>
-
-            {grouped[area]
-              .sort((a: Row, b: Row) =>
-                a.location.localeCompare(b.location)
-              )
-              .map(row => (
-                <div
-                  key={row.id}
-                  style={{
-                    padding: "6px 0",
-                    fontSize: 16
-                  }}
-                >
-                  {row.location} → QTY:{" "}
-                  <strong>{row.qty.toLocaleString()}</strong>
-                </div>
-              ))}
-          </div>
         ))}
       </div>
 
