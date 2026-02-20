@@ -80,7 +80,7 @@ export default function Page() {
       <h2 style={{ marginBottom: 20 }}>Move Location</h2>
 
       {/* LOCATION INPUT + AUTOCOMPLETE */}
-      <div style={{ position: "relative", marginBottom: 15 }}>
+      <div style={{ position: "relative", marginBottom: 40 }}>
         <input
           type="text"
           placeholder="Enter Location (e.g. 3A98)"
@@ -125,29 +125,20 @@ export default function Page() {
         )}
       </div>
 
-      <button
-        onClick={() => handlePreview()}
-        style={{
-          padding: "8px 12px",
-          marginBottom: 20,
-          cursor: "pointer"
-        }}
-      >
-        Preview
-      </button>
+      
 
       {/* PREVIEW RESULTS */}
       {previewRows.length > 0 && (
-        <div style={{ marginBottom: 25 }}>
-          <h4>Preview ({previewRows.length} row(s))</h4>
-          {previewRows.map((row) => (
-            <div key={row.id}>
-              {row.location} — {row.item} {row.size} — QTY:{" "}
-              {row.qty?.toLocaleString()}
-            </div>
-          ))}
-        </div>
-      )}
+  <div style={{ marginBottom: 40 }}>
+    {previewRows.map((row) => (
+      <div key={row.id}>
+        {row.location} ➡ ➡  {row.item} {row.size}➡➡ QTY:{" "}
+        {row.qty?.toLocaleString()}
+      </div>
+    ))}
+  </div>
+)}
+
 
       {/* MOVE TO SECTION */}
       <div style={{ marginTop: 30, textAlign: "center" }}>

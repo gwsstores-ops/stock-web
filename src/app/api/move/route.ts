@@ -5,23 +5,55 @@ export async function POST(req: Request) {
   try {
     const { location, target } = await req.json();
 
-    if (!location) {
-      return NextResponse.json({ error: "Location required" }, { status: 400 });
+    if (!location || !target) {
+      return NextResponse.json(
+        { error: "Missing data" },
+        { status: 400 }
+      );
     }
 
-    const { data, error } = await supabase
-      .from("stock")
-      .update({
-        area: target === "GWS" ? "GWS-IN" : target
-      })
-      .ilike("location", `${location}%`)
-      .select();
+    const newArea = target === "GWS" ? "GWS-IN" : target;
 
-    if (error) throw error;
+    // 1️⃣ Get rows that will be moved
+    const { data: rows, error: fetchError } = await supabase
+      .from("stock")
+      .select("*")
+      .ilike("location", `${location}%`);
+
+    if (fetchError) throw fetchError;
+    if (!rows || rows.length === 0) {
+      return NextResponse.json({ message: "No rows found" });
+    }
+
+    // 2️⃣ Insert audit entries (one per row)
+    const logEntries = rows.map((row: any) => ({
+      stock_id: row.id,
+      location: row.location,
+      item: row.item,
+      size: row.size,
+      qty: row.qty,
+      old_area: row.area,
+      new_area: newArea
+    }));
+
+    const { error: logError } = await supabase
+      .from("move_log")
+      .insert(logEntries);
+
+    if (logError) throw logError;
+
+    // 3️⃣ Update stock table
+    const { error: updateError } = await supabase
+      .from("stock")
+      .update({ area: newArea })
+      .ilike("location", `${location}%`);
+
+    if (updateError) throw updateError;
 
     return NextResponse.json({
-      message: `${data.length} row(s) moved to ${target}`
+      message: `Moved ${rows.length} row(s)`
     });
+
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || "Move failed" },
