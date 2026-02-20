@@ -74,7 +74,7 @@ export default function Page() {
           (d: any) => d.diam_display
         );
 
-        const sorted = list.sort((a, b) => Number(a) - Number(b));
+        const sorted = list.sort((a: string, b: string) => Number(a) - Number(b));
 	setDiameters(sorted);
 
         if (list.length === 1) {
