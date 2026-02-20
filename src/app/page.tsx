@@ -86,27 +86,37 @@ export default function Page() {
 
   // When diameter changes
   useEffect(() => {
-    if (!diam) return;
+  if (!diam) return;
 
-    setLength("");
-    setRows([]);
+  setLength("");
+  setRows([]);
 
-    fetch(`/api/lengths?cat=${cat}&item=${item}&diam=${diam}`)
-      .then(res => res.json())
-      .then(data => {
-        const list = (data.lengths || []).map(
-          (l: any) => l.length_display
-        );
+  fetch(`/api/lengths?cat=${cat}&item=${item}&diam=${diam}`)
+    .then(res => res.json())
+    .then(data => {
+      const list = (data.lengths || []).map(
+        (l: any) => l.length_display
+      );
 
-        const sorted = list.sort((a, b) => Number(a) - Number(b));
-	setLengths(sorted);
+      // 🔥 If no lengths exist, skip length step
+      if (list.length === 0) {
+        fetch(
+          `/api/search?cat=${cat}&item=${item}&diam=${diam}`
+        )
+          .then(res => res.json())
+          .then(data => setRows(data.rows || []));
+        return;
+      }
 
-        if (list.length === 1) {
-          setLength(list[0]);
-          setTimeout(() => lengthRef.current?.focus(), 100);
-        }
-      });
-  }, [diam]);
+      setLengths(list.sort((a, b) => Number(a) - Number(b)));
+
+      if (list.length === 1) {
+        setLength(list[0]);
+        setTimeout(() => lengthRef.current?.focus(), 100);
+      }
+    });
+}, [diam]);
+
 
   // When length changes → fetch results
   useEffect(() => {
@@ -177,9 +187,23 @@ export default function Page() {
           onChange={e => setItem(e.target.value)}
         >
           <option value="">Select Item</option>
-          {items.map(i => (
-            <option key={i}>{i}</option>
-          ))}
+          {items.map(i => {
+  const isHDG = i.toUpperCase().includes("HDG");
+  const isZP = i.toUpperCase().includes("ZP");
+
+  let marker = "";
+
+  if (isHDG) marker = " 🔘 ";
+  if (isZP) marker = " 🔵 ";
+
+  return (
+    <option key={i} value={i}>
+      {i}{marker}
+    </option>
+  );
+})}
+
+
         </select>
 
         <select
