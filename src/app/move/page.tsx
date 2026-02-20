@@ -59,9 +59,11 @@ export default function Page() {
       const res = await fetch(`/api/preview?location=${upper}`);
       const data = await res.json();
 
-      const uniqueLocations = Array.from(
-  new Set(data.map((r: any) => r.location))
-) as string[];
+      const rows: Row[] = data.rows || [];
+
+const uniqueLocations = Array.from(
+  new Set(rows.map((r) => r.location))
+);
 
       setSuggestions(uniqueLocations);
     } else {
