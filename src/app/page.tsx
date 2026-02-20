@@ -267,7 +267,7 @@ export default function Page() {
                 .sort((a: Row, b: Row) =>
                   a.location.localeCompare(b.location)
                 )
-                .map(row => (
+                .map((row: Row) => (
                   <div
                     key={row.id}
                     style={{
