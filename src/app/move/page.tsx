@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 
 type Row = {
   id: number;
@@ -15,6 +17,17 @@ export default function Page() {
   const [previewRows, setPreviewRows] = useState<Row[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+const searchParams = useSearchParams();
+
+useEffect(() => {
+  const scannedLocation = searchParams.get("location");
+
+  if (scannedLocation) {
+    const upper = scannedLocation.toUpperCase();
+    setLocation(upper);
+    handlePreview(upper);
+  }
+}, [searchParams]);
 
   const handlePreview = async (loc?: string) => {
     const target = loc || location;
