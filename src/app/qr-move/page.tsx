@@ -119,8 +119,13 @@ export default function Page() {
     return () => {
       isActive = false;
       // Best-effort stop/clear
-      qr.stop().catch(() => {});
-      qr.clear().catch(() => {});
+qr.stop().catch(() => {});
+
+try {
+  qr.clear(); // clear() returns void
+} catch {
+  // ignore
+}
     };
   }, [scanning]);
 
