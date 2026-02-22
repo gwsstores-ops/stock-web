@@ -19,14 +19,75 @@ export default function MoveClient() {
 
   const searchParams = useSearchParams();
 
+  /* ==============================
+     PREVIEW
+  ============================== */
+
   const handlePreview = async (loc?: string) => {
     const target = loc || location;
     if (!target) return;
 
     const res = await fetch(`/api/preview?location=${target}`);
     const data = await res.json();
+
     setPreviewRows(data.rows || []);
   };
+
+  /* ==============================
+     MOVE
+  ============================== */
+
+  const handleMove = async (targetArea: string) => {
+    if (!previewRows.length) return;
+
+    const confirmMove = confirm(
+      `Move ${previewRows.length} row(s) to ${targetArea}?`
+    );
+
+    if (!confirmMove) return;
+
+    setLoading(true);
+
+    await fetch("/api/move", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location,
+        target: targetArea
+      })
+    });
+
+    alert("Move complete");
+
+    await handlePreview(location);
+    setLoading(false);
+  };
+
+  /* ==============================
+     AUTOCOMPLETE
+  ============================== */
+
+  const handleLocationChange = async (value: string) => {
+    const upper = value.toUpperCase();
+    setLocation(upper);
+
+    if (upper.length >= 2) {
+      const res = await fetch(`/api/preview?location=${upper}`);
+      const data = await res.json();
+
+      const uniqueLocations = Array.from(
+        new Set((data.rows || []).map((r: Row) => r.location))
+      );
+
+      setSuggestions(uniqueLocations);
+    } else {
+      setSuggestions([]);
+    }
+  };
+
+  /* ==============================
+     QR AUTO-FILL
+  ============================== */
 
   useEffect(() => {
     const scannedLocation = searchParams.get("location");
@@ -38,23 +99,112 @@ export default function MoveClient() {
     }
   }, [searchParams]);
 
-  return (
-    <div style={{ padding: 40 }}>
-      <h2>Move Location</h2>
-      <input
-        value={location}
-        onChange={(e) => setLocation(e.target.value.toUpperCase())}
-        placeholder="Enter Location"
-      />
-      <button onClick={() => handlePreview()}>
-        Preview
-      </button>
+  /* ==============================
+     ICON MAP
+  ============================== */
 
-      {previewRows.map((row) => (
-        <div key={row.id}>
-          {row.location} — {row.item} {row.size} — QTY {row.qty}
+  const iconMap: Record<string, string> = {
+    GWS: "/gws.png",
+    W3: "/w3.png",
+    W4: "/w4.png"
+  };
+
+  return (
+    <div style={{ padding: 40, maxWidth: 700, margin: "0 auto" }}>
+      <h2 style={{ marginBottom: 20 }}>Move Location</h2>
+
+      {/* INPUT + AUTOCOMPLETE */}
+      <div style={{ position: "relative", marginBottom: 40 }}>
+        <input
+          type="text"
+          placeholder="Enter Location (e.g. 3A98)"
+          value={location}
+          onChange={(e) => handleLocationChange(e.target.value)}
+          style={{
+            padding: 10,
+            width: "100%",
+            fontSize: 16
+          }}
+        />
+
+        {suggestions.length > 0 && (
+          <div
+            style={{
+              position: "absolute",
+              top: 45,
+              left: 0,
+              right: 0,
+              background: "white",
+              border: "1px solid #ccc",
+              zIndex: 10
+            }}
+          >
+            {suggestions.map((s) => (
+              <div
+                key={s}
+                style={{
+                  padding: 8,
+                  cursor: "pointer"
+                }}
+                onClick={() => {
+                  setLocation(s);
+                  setSuggestions([]);
+                  handlePreview(s);
+                }}
+              >
+                {s}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* PREVIEW RESULTS */}
+      {previewRows.length > 0 && (
+        <div style={{ marginBottom: 40 }}>
+          {previewRows.map((row) => (
+            <div key={row.id}>
+              {row.location} ➡ {row.item} {row.size} ➡ QTY:{" "}
+              {row.qty?.toLocaleString()}
+            </div>
+          ))}
         </div>
-      ))}
+      )}
+
+      {/* MOVE TO SECTION */}
+      <div style={{ marginTop: 30, textAlign: "center" }}>
+        <h3 style={{ marginBottom: 15 }}>Move To</h3>
+
+        <div
+          style={{
+            display: "flex",
+            gap: 30,
+            justifyContent: "center",
+            alignItems: "center"
+          }}
+        >
+          {["GWS", "W3", "W4"].map((area) => {
+            const disabled = previewRows.length === 0;
+
+            return (
+              <img
+                key={area}
+                src={iconMap[area]}
+                alt={area}
+                style={{
+                  width: 90,
+                  cursor: disabled ? "not-allowed" : "pointer",
+                  opacity: disabled ? 0.3 : 1,
+                  transition: "0.2s"
+                }}
+                onClick={() => {
+                  if (!disabled) handleMove(area);
+                }}
+              />
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
