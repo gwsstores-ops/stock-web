@@ -17,14 +17,30 @@ export default function QrMovePage() {
         { facingMode: "environment" },
         { fps: 10, qrbox: 250 },
         (decodedText: string) => {
-          alert("Scanned: " + decodedText);
+  console.log("Scanned value:", decodedText);
 
-          qr.stop().then(() => {
-            qr.clear();
-            setScanning(false);
-          });
-        },
-        () => {}
+  if (!decodedText) {
+    console.log("Empty scan result");
+    return;
+  }
+
+  // Stop scanner safely
+  qr.stop()
+    .then(() => qr.clear())
+    .then(() => {
+      setScanning(false);
+
+      // Auto-fill your move page with scanned location
+      window.location.href = `/move?location=${encodeURIComponent(decodedText)}`;
+    })
+    .catch((err: any) => {
+      console.error("Error stopping scanner:", err);
+    });
+},
+(errorMessage: string) => {
+  // Ignore scan noise (camera throws constant decode errors while scanning)
+  console.log("Scan error (normal while scanning):", errorMessage);
+}
       );
 
       setScanning(true);
