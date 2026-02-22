@@ -21,15 +21,18 @@ export default function QrMovePage() {
 
       try {
         await qr.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: 250 },
-          (decodedText) => {
-            alert("Scanned: " + decodedText);
-
-            qr.stop().then(() => qr.clear());
-            setScanning(false);
-          }
-        );
+  { facingMode: "environment" },
+  { fps: 10, qrbox: 250 },
+  (decodedText) => {
+    alert("Scanned: " + decodedText);
+    qr.stop().then(() => qr.clear());
+    setScanning(false);
+  },
+  (errorMessage) => {
+    // ignore scan errors (they happen constantly while scanning)
+    console.log("QR scan error:", errorMessage);
+  }
+);
       } catch (err) {
         console.error("QR start error:", err);
       }
