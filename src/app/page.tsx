@@ -245,13 +245,16 @@ export default function Page() {
       </div>
 
       {/* TITLE */}
-      {item && diam && length && (
-        <div style={{ marginTop: 30, marginBottom: 20 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 600 }}>
-            {item} – {diam} X {length}
-          </h2>
-        </div>
-      )}
+      {rows.length > 0 && (
+  <div style={{ marginTop: 30, marginBottom: 20 }}>
+    <div style={{ fontSize: 22, fontWeight: 600 }}>
+      {rows[0].item}
+    </div>
+    <div style={{ fontSize: 18, color: "#555", marginTop: 4 }}>
+      {rows[0].size}
+    </div>
+  </div>
+)}
 
       {/* RESULTS */}
       <div>
