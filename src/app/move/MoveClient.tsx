@@ -76,10 +76,8 @@ export default function MoveClient() {
       const data = await res.json();
 
       const uniqueLocations: string[] = Array.from(
-  new Set(
-    (data.rows || []).map((r: Row) => r.location)
-  )
-);
+        new Set((data.rows || []).map((r: Row) => r.location))
+      );
 
       setSuggestions(uniqueLocations);
     } else {
@@ -101,10 +99,6 @@ export default function MoveClient() {
     }
   }, [searchParams]);
 
-  /* ==============================
-     ICON MAP
-  ============================== */
-
   const iconMap: Record<string, string> = {
     GWS: "/gws.png",
     W3: "/w3.png",
@@ -112,20 +106,28 @@ export default function MoveClient() {
   };
 
   return (
-    <div style={{ padding: 40, maxWidth: 700, margin: "0 auto" }}>
-      <h2 style={{ marginBottom: 20 }}>Move Location</h2>
+    <div
+      style={{
+        padding: "18px 14px 24px",
+        maxWidth: 700,
+        margin: "0 auto"
+      }}
+    >
+      <h2 style={{ marginBottom: 16 }}>↓ MOVE ↓</h2>
 
       {/* INPUT + AUTOCOMPLETE */}
-      <div style={{ position: "relative", marginBottom: 40 }}>
+      <div style={{ position: "relative", marginBottom: 24 }}>
         <input
           type="text"
           placeholder="Enter Location (e.g. 3A98)"
           value={location}
           onChange={(e) => handleLocationChange(e.target.value)}
           style={{
-            padding: 10,
+            padding: "10px 12px",
             width: "100%",
-            fontSize: 16
+            fontSize: 17,
+            borderRadius: 6,
+            border: "1px solid #ccc"
           }}
         />
 
@@ -133,11 +135,12 @@ export default function MoveClient() {
           <div
             style={{
               position: "absolute",
-              top: 45,
+              top: 44,
               left: 0,
               right: 0,
               background: "white",
               border: "1px solid #ccc",
+              borderRadius: 6,
               zIndex: 10
             }}
           >
@@ -145,7 +148,7 @@ export default function MoveClient() {
               <div
                 key={s}
                 style={{
-                  padding: 8,
+                  padding: "10px 12px",
                   cursor: "pointer"
                 }}
                 onClick={() => {
@@ -161,26 +164,61 @@ export default function MoveClient() {
         )}
       </div>
 
-      {/* PREVIEW RESULTS */}
-      {previewRows.length > 0 && (
-        <div style={{ marginBottom: 40 }}>
-          {previewRows.map((row) => (
-            <div key={row.id}>
-              {row.location} ➡ {row.item} {row.size} ➡ QTY:{" "}
-              {row.qty?.toLocaleString()}
-            </div>
-          ))}
+     {/* PREVIEW RESULTS */}
+{previewRows.length > 0 && (
+  <div style={{ marginBottom: 28 }}>
+    {previewRows.map((row) => (
+      <div
+        key={row.id}
+        style={{
+          padding: "10px 0",
+          borderBottom: "1px solid #e5e5e5"
+        }}
+      >
+        {/* LOCATION */}
+        <div
+          style={{
+            fontSize: 18,
+            fontWeight: 700,
+            letterSpacing: 0.5
+          }}
+        >
+          {row.location}
         </div>
-      )}
 
+        {/* ITEM + SIZE */}
+        <div
+          style={{
+            fontSize: 15,
+            marginTop: 3,
+            color: "#444"
+          }}
+        >
+          {row.item} — {row.size}
+        </div>
+
+        {/* QTY */}
+        <div
+          style={{
+            fontSize: 15,
+            marginTop: 4,
+            color: "#333"
+          }}
+        >
+          QTY: {row.qty?.toLocaleString()}
+        </div>
+      </div>
+    ))}
+  </div>
+)}
       {/* MOVE TO SECTION */}
-      <div style={{ marginTop: 30, textAlign: "center" }}>
-        <h3 style={{ marginBottom: 15 }}>Move To</h3>
+      <div style={{ marginTop: 20, textAlign: "center" }}>
+        <h3 style={{ marginBottom: 12 }}>TO</h3>
 
         <div
           style={{
             display: "flex",
-            gap: 30,
+            gap: 24,
             justifyContent: "center",
             alignItems: "center"
           }}
@@ -194,7 +232,7 @@ export default function MoveClient() {
                 src={iconMap[area]}
                 alt={area}
                 style={{
-                  width: 90,
+                  width: 80,
                   cursor: disabled ? "not-allowed" : "pointer",
                   opacity: disabled ? 0.3 : 1,
                   transition: "0.2s"

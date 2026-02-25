@@ -23,6 +23,11 @@ export default function Page() {
   const [lengths, setLengths] = useState<string[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
 
+  const [locationCounts, setLocationCounts] = useState({
+    W3: 0,
+    W4: 0
+  });
+
   const itemRef = useRef<HTMLSelectElement>(null);
   const diamRef = useRef<HTMLSelectElement>(null);
   const lengthRef = useRef<HTMLSelectElement>(null);
@@ -30,14 +35,34 @@ export default function Page() {
 
   const allowedAreas = ["GWS", "W3", "W4"];
 
-  // Load categories
+  const selectStyle: React.CSSProperties = {
+    padding: "10px 12px",
+    fontSize: 16,
+    borderRadius: 6,
+    border: "1px solid #ccc",
+    background: "#fff"
+  };
+
+  // ---------- LOAD COUNTS ----------
+  useEffect(() => {
+    fetch("/api/location-counts")
+      .then(res => res.json())
+      .then(data => {
+        setLocationCounts({
+          W3: data.W3 || 0,
+          W4: data.W4 || 0
+        });
+      });
+  }, []);
+
+  // ---------- LOAD CATEGORIES ----------
   useEffect(() => {
     fetch("/api/categories")
       .then(res => res.json())
       .then(data => setCategories(data.categories || []));
   }, []);
 
-  // When category changes
+  // ---------- CATEGORY CHANGED ----------
   useEffect(() => {
     if (!cat) return;
 
@@ -59,7 +84,7 @@ export default function Page() {
       });
   }, [cat]);
 
-  // When item changes
+  // ---------- ITEM CHANGED ----------
   useEffect(() => {
     if (!item) return;
 
@@ -74,53 +99,54 @@ export default function Page() {
           (d: any) => d.diam_display
         );
 
-        const sorted = list.sort((a: string, b: string) => Number(a) - Number(b));
-	setDiameters(sorted);
+        const sorted = list.sort(
+          (a: string, b: string) => Number(a) - Number(b)
+        );
 
-        if (list.length === 1) {
-          setDiam(list[0]);
+        setDiameters(sorted);
+
+        if (sorted.length === 1) {
+          setDiam(sorted[0]);
           setTimeout(() => diamRef.current?.focus(), 100);
         }
       });
   }, [item]);
 
-  // When diameter changes
+  // ---------- DIAM CHANGED ----------
   useEffect(() => {
-  if (!diam) return;
+    if (!diam) return;
 
-  setLength("");
-  setRows([]);
+    setLength("");
+    setRows([]);
 
-  fetch(`/api/lengths?cat=${cat}&item=${item}&diam=${diam}`)
-    .then(res => res.json())
-    .then(data => {
-      const list = (data.lengths || []).map(
-        (l: any) => l.length_display
-      );
+    fetch(`/api/lengths?cat=${cat}&item=${item}&diam=${diam}`)
+      .then(res => res.json())
+      .then(data => {
+        const list = (data.lengths || []).map(
+          (l: any) => l.length_display
+        );
 
-      // 🔥 If no lengths exist, skip length step
-      if (list.length === 0) {
-        fetch(
-          `/api/search?cat=${cat}&item=${item}&diam=${diam}`
-        )
-          .then(res => res.json())
-          .then(data => setRows(data.rows || []));
-        return;
-      }
+        if (list.length === 0) {
+          fetch(`/api/search?cat=${cat}&item=${item}&diam=${diam}`)
+            .then(res => res.json())
+            .then(data => setRows(data.rows || []));
+          return;
+        }
 
-      setLengths(
-  list.sort((a: string, b: string) => Number(a) - Number(b))
-);
+        const sorted = list.sort(
+          (a: string, b: string) => Number(a) - Number(b)
+        );
 
-      if (list.length === 1) {
-        setLength(list[0]);
-        setTimeout(() => lengthRef.current?.focus(), 100);
-      }
-    });
-}, [diam]);
+        setLengths(sorted);
 
+        if (sorted.length === 1) {
+          setLength(sorted[0]);
+          setTimeout(() => lengthRef.current?.focus(), 100);
+        }
+      });
+  }, [diam]);
 
-  // When length changes → fetch results
+  // ---------- LENGTH CHANGED ----------
   useEffect(() => {
     if (!length) return;
 
@@ -138,15 +164,18 @@ export default function Page() {
     return "";
   };
 
-  const filteredRows = rows.filter(
-    row => allowedAreas.includes(row.area)
+  const filteredRows = rows.filter(row =>
+    allowedAreas.includes(row.area)
   );
 
-  const grouped = filteredRows.reduce((acc: any, row) => {
-    if (!acc[row.area]) acc[row.area] = [];
-    acc[row.area].push(row);
-    return acc;
-  }, {});
+  const grouped = filteredRows.reduce<Record<string, Row[]>>(
+    (acc, row) => {
+      if (!acc[row.area]) acc[row.area] = [];
+      acc[row.area].push(row);
+      return acc;
+    },
+    {}
+  );
 
   const resetAll = () => {
     setCat("");
@@ -157,27 +186,59 @@ export default function Page() {
     setDiameters([]);
     setLengths([]);
     setRows([]);
-
     setTimeout(() => catRef.current?.focus(), 100);
   };
 
+  const getItemStyle = (item: string): React.CSSProperties => {
+    if (item.toUpperCase().includes("HDG")) {
+      return { color: "#777" };
+    }
+    return {};
+  };
+
   return (
-    <div style={{ padding: 40, maxWidth: 700, margin: "0 auto" }}>
-      
-      {/* LOGO */}
-      <div style={{ textAlign: "center", marginBottom: 25 }}>
-        <img src="/logo.png" height={70} />
+    <div
+      style={{
+        padding: "18px 14px 24px",
+        maxWidth: 700,
+        margin: "0 auto"
+      }}
+    >
+      {/* HEADER WITH COUNTS */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 20
+        }}
+      >
+        <div style={{ textAlign: "center", minWidth: 100 }}>
+          <div style={{ fontSize: 18, color: "#777" }}>W3 PALLETS</div>
+          <div style={{ fontSize: 18, fontWeight: 700 }}>
+            {locationCounts.W3}
+          </div>
+        </div>
+
+        <img src="/logo.png" height={60} />
+
+        <div style={{ textAlign: "center", minWidth: 100 }}>
+          <div style={{ fontSize: 18, color: "#777" }}>W4 PALLETS </div>
+          <div style={{ fontSize: 18, fontWeight: 700 }}>
+            {locationCounts.W4}
+          </div>
+        </div>
       </div>
 
       {/* DROPDOWNS */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <select
           ref={catRef}
           value={cat}
           onChange={e => setCat(e.target.value)}
+          style={selectStyle}
         >
-          <option value="">Select Category</option>
+          <option value="">CAT</option>
           {categories.map(c => (
             <option key={c}>{c}</option>
           ))}
@@ -187,33 +248,21 @@ export default function Page() {
           ref={itemRef}
           value={item}
           onChange={e => setItem(e.target.value)}
+          style={selectStyle}
         >
-          <option value="">Select Item</option>
-          {items.map(i => {
-  const isHDG = i.toUpperCase().includes("HDG");
-  const isZP = i.toUpperCase().includes("ZP");
-
-  let marker = "";
-
-  if (isHDG) marker = " 🔘 ";
-  if (isZP) marker = " 🔵 ";
-
-  return (
-    <option key={i} value={i}>
-      {i}{marker}
-    </option>
-  );
-})}
-
-
+          <option value="">ITEM</option>
+          {items.map(i => (
+            <option key={i}>{i}</option>
+          ))}
         </select>
 
         <select
           ref={diamRef}
           value={diam}
           onChange={e => setDiam(e.target.value)}
+          style={selectStyle}
         >
-          <option value="">Select Diameter</option>
+          <option value="">DIAMETER</option>
           {diameters.map(d => (
             <option key={d}>{d}</option>
           ))}
@@ -223,8 +272,9 @@ export default function Page() {
           ref={lengthRef}
           value={length}
           onChange={e => setLength(e.target.value)}
+          style={selectStyle}
         >
-          <option value="">Select Length</option>
+          <option value="">LENGTH</option>
           {lengths.map(l => (
             <option key={l}>{l}</option>
           ))}
@@ -233,11 +283,13 @@ export default function Page() {
         <button
           onClick={resetAll}
           style={{
-            marginTop: 10,
-            padding: "8px 12px",
+            marginTop: 8,
+            padding: "10px 14px",
             backgroundColor: "#eee",
             border: "1px solid #ccc",
-            cursor: "pointer"
+            borderRadius: 6,
+            cursor: "pointer",
+            fontSize: 15
           }}
         >
           Reset
@@ -246,36 +298,44 @@ export default function Page() {
 
       {/* TITLE */}
       {rows.length > 0 && (
-  <div style={{ marginTop: 30, marginBottom: 20 }}>
-    <div style={{ fontSize: 22, fontWeight: 600 }}>
-      {rows[0].item}
-    </div>
-    <div style={{ fontSize: 18, color: "#555", marginTop: 4 }}>
-      {rows[0].size}
-    </div>
-  </div>
-)}
+        <div style={{ marginTop: 24, marginBottom: 16 }}>
+          <div style={{ fontSize: 20 }}>
+            <span
+              style={{
+                fontWeight: 700,
+                ...getItemStyle(rows[0].item)
+              }}
+            >
+              {rows[0].item}
+            </span>
+
+            <span style={{ marginLeft: 18, color: "#555" }}>
+              {rows[0].size}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* RESULTS */}
       <div>
         {["GWS", "W3", "W4"]
           .filter(area => grouped[area])
           .map(area => (
-            <div key={area} style={{ marginBottom: 35 }}>
-              <div style={{ marginBottom: 10 }}>
-                <img src={areaIcon(area)} width={50} />
+            <div key={area} style={{ marginBottom: 28 }}>
+              <div style={{ marginBottom: 8 }}>
+                <img src={areaIcon(area)} width={45} />
               </div>
 
               {grouped[area]
-                .sort((a: Row, b: Row) =>
+                .sort((a, b) =>
                   a.location.localeCompare(b.location)
                 )
-                .map((row: Row) => (
+                .map(row => (
                   <div
                     key={row.id}
                     style={{
-                      padding: "6px 0",
-                      fontSize: 16
+                      padding: "4px 0",
+                      fontSize: 15
                     }}
                   >
                     {row.location} → QTY:{" "}
@@ -287,7 +347,6 @@ export default function Page() {
             </div>
         ))}
       </div>
-
     </div>
   );
 }
