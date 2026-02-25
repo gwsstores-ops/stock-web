@@ -43,26 +43,26 @@ export default function Page() {
     background: "#fff"
   };
 
-  // ---------- LOAD COUNTS ----------
+  // LOAD COUNTS
   useEffect(() => {
     fetch("/api/location-counts")
       .then(res => res.json())
-      .then(data => {
+      .then(data =>
         setLocationCounts({
           W3: data.W3 || 0,
           W4: data.W4 || 0
-        });
-      });
+        })
+      );
   }, []);
 
-  // ---------- LOAD CATEGORIES ----------
+  // LOAD CATEGORIES
   useEffect(() => {
     fetch("/api/categories")
       .then(res => res.json())
       .then(data => setCategories(data.categories || []));
   }, []);
 
-  // ---------- CATEGORY CHANGED ----------
+  // CATEGORY CHANGED
   useEffect(() => {
     if (!cat) return;
 
@@ -84,7 +84,7 @@ export default function Page() {
       });
   }, [cat]);
 
-  // ---------- ITEM CHANGED ----------
+  // ITEM CHANGED
   useEffect(() => {
     if (!item) return;
 
@@ -112,7 +112,7 @@ export default function Page() {
       });
   }, [item]);
 
-  // ---------- DIAM CHANGED ----------
+  // DIAM CHANGED
   useEffect(() => {
     if (!diam) return;
 
@@ -146,7 +146,7 @@ export default function Page() {
       });
   }, [diam]);
 
-  // ---------- LENGTH CHANGED ----------
+  // LENGTH CHANGED
   useEffect(() => {
     if (!length) return;
 
@@ -197,34 +197,29 @@ export default function Page() {
   };
 
   return (
-    <div
-      style={{
-        padding: "18px 14px 24px",
-        maxWidth: 700,
-        margin: "0 auto"
-      }}
-    >
-      {/* HEADER WITH COUNTS */}
+    <div style={{ padding: "18px 14px 24px", maxWidth: 700, margin: "0 auto" }}>
+
+      {/* HEADER WITH SMALLER COUNTS */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: 20
+          marginBottom: 18
         }}
       >
-        <div style={{ textAlign: "center", minWidth: 100 }}>
-          <div style={{ fontSize: 18, color: "#777" }}>W3 PALLETS</div>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>
+        <div style={{ textAlign: "center", minWidth: 90 }}>
+          <div style={{ fontSize: 13, color: "#777" }}>W3 PALLETS</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "#444" }}>
             {locationCounts.W3}
           </div>
         </div>
 
-        <img src="/logo.png" height={60} />
+        <img src="/logo.png" height={58} />
 
-        <div style={{ textAlign: "center", minWidth: 100 }}>
-          <div style={{ fontSize: 18, color: "#777" }}>W4 PALLETS </div>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>
+        <div style={{ textAlign: "center", minWidth: 90 }}>
+          <div style={{ fontSize: 13, color: "#777" }}>W4 PALLETS</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "#444" }}>
             {locationCounts.W4}
           </div>
         </div>
@@ -232,52 +227,24 @@ export default function Page() {
 
       {/* DROPDOWNS */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <select
-          ref={catRef}
-          value={cat}
-          onChange={e => setCat(e.target.value)}
-          style={selectStyle}
-        >
+        <select ref={catRef} value={cat} onChange={e => setCat(e.target.value)} style={selectStyle}>
           <option value="">CAT</option>
-          {categories.map(c => (
-            <option key={c}>{c}</option>
-          ))}
+          {categories.map(c => <option key={c}>{c}</option>)}
         </select>
 
-        <select
-          ref={itemRef}
-          value={item}
-          onChange={e => setItem(e.target.value)}
-          style={selectStyle}
-        >
+        <select ref={itemRef} value={item} onChange={e => setItem(e.target.value)} style={selectStyle}>
           <option value="">ITEM</option>
-          {items.map(i => (
-            <option key={i}>{i}</option>
-          ))}
+          {items.map(i => <option key={i}>{i}</option>)}
         </select>
 
-        <select
-          ref={diamRef}
-          value={diam}
-          onChange={e => setDiam(e.target.value)}
-          style={selectStyle}
-        >
+        <select ref={diamRef} value={diam} onChange={e => setDiam(e.target.value)} style={selectStyle}>
           <option value="">DIAMETER</option>
-          {diameters.map(d => (
-            <option key={d}>{d}</option>
-          ))}
+          {diameters.map(d => <option key={d}>{d}</option>)}
         </select>
 
-        <select
-          ref={lengthRef}
-          value={length}
-          onChange={e => setLength(e.target.value)}
-          style={selectStyle}
-        >
+        <select ref={lengthRef} value={length} onChange={e => setLength(e.target.value)} style={selectStyle}>
           <option value="">LENGTH</option>
-          {lengths.map(l => (
-            <option key={l}>{l}</option>
-          ))}
+          {lengths.map(l => <option key={l}>{l}</option>)}
         </select>
 
         <button
@@ -300,15 +267,9 @@ export default function Page() {
       {rows.length > 0 && (
         <div style={{ marginTop: 24, marginBottom: 16 }}>
           <div style={{ fontSize: 20 }}>
-            <span
-              style={{
-                fontWeight: 700,
-                ...getItemStyle(rows[0].item)
-              }}
-            >
+            <span style={{ fontWeight: 700, ...getItemStyle(rows[0].item) }}>
               {rows[0].item}
             </span>
-
             <span style={{ marginLeft: 18, color: "#555" }}>
               {rows[0].size}
             </span>
@@ -327,25 +288,15 @@ export default function Page() {
               </div>
 
               {grouped[area]
-                .sort((a, b) =>
-                  a.location.localeCompare(b.location)
-                )
+                .sort((a, b) => a.location.localeCompare(b.location))
                 .map(row => (
-                  <div
-                    key={row.id}
-                    style={{
-                      padding: "4px 0",
-                      fontSize: 15
-                    }}
-                  >
+                  <div key={row.id} style={{ padding: "4px 0", fontSize: 15 }}>
                     {row.location} → QTY:{" "}
-                    <strong>
-                      {(row.qty ?? 0).toLocaleString()}
-                    </strong>
+                    <strong>{(row.qty ?? 0).toLocaleString()}</strong>
                   </div>
                 ))}
             </div>
-        ))}
+          ))}
       </div>
     </div>
   );
