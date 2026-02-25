@@ -1,9 +1,16 @@
-"use client";
-
 import "./globals.css";
 import Link from "next/link";
 import { ReactNode } from "react";
 import { usePathname } from "next/navigation";
+
+export const metadata = {
+  title: "GWS Stock",
+  description: "GWS Warehouse Stock System",
+  icons: {
+    icon: "/icon.png",
+    apple: "/apple-icon.png",
+  },
+};
 
 export default function RootLayout({
   children,
