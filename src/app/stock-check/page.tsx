@@ -78,10 +78,7 @@ export default function Page() {
   const markAllChecked = async () => {
     if (!rows.length) return;
 
-    const confirmAll = confirm(
-      `Mark all ${rows.length} lines as checked?`
-    );
-
+    const confirmAll = confirm(`Mark all ${rows.length} lines as checked?`);
     if (!confirmAll) return;
 
     await fetch("/api/mark-all-checked", {
@@ -94,24 +91,17 @@ export default function Page() {
     loadOutstanding();
   };
 
-  const allChecked =
-    rows.length > 0 &&
-    rows.every((row) => row.stock_check === true);
+  const allChecked = rows.length > 0 && rows.every((row) => row.stock_check === true);
 
   /* ==============================
      RESET ALL STOCK CHECKS
   ============================== */
 
   const resetAllStockChecks = async () => {
-    const confirmReset = confirm(
-      "Reset ALL stock checks to unchecked?"
-    );
-
+    const confirmReset = confirm("Reset ALL stock checks to unchecked?");
     if (!confirmReset) return;
 
-    await fetch("/api/reset-stock-check", {
-      method: "POST"
-    });
+    await fetch("/api/reset-stock-check", { method: "POST" });
 
     handleSearch();
     loadOutstanding();
@@ -125,8 +115,7 @@ export default function Page() {
     const params = new URLSearchParams();
 
     if (filterArea) params.append("area", filterArea);
-    if (filterLocation)
-      params.append("location", filterLocation);
+    if (filterLocation) params.append("location", filterLocation);
 
     const res = await fetch(`/api/checked?${params}`);
     const data = await res.json();
@@ -145,12 +134,7 @@ export default function Page() {
     const csvRows = [
       headers.join(","),
       ...outstandingRows.map((row) =>
-        [
-          row.location,
-          `"${row.item}"`,
-          `"${row.size}"`,
-          row.qty ?? 0
-        ].join(",")
+        [row.location, `"${row.item}"`, `"${row.size}"`, row.qty ?? 0].join(",")
       )
     ];
 
@@ -164,9 +148,7 @@ export default function Page() {
     link.href = url;
     link.setAttribute(
       "download",
-      `outstanding_${new Date()
-        .toISOString()
-        .slice(0, 10)}.csv`
+      `outstanding_${new Date().toISOString().slice(0, 10)}.csv`
     );
 
     document.body.appendChild(link);
@@ -181,13 +163,8 @@ export default function Page() {
   const getItemStyle = (item: string): React.CSSProperties => {
     const upper = item.toUpperCase();
 
-    if (upper.includes("HDB SC")) {
-      return { fontWeight: 700, color: "#000" };
-    }
-
-    if (upper.includes("HDG")) {
-      return { fontWeight: 700, color: "#777" };
-    }
+    if (upper.includes("HDB SC")) return { fontWeight: 700, color: "#000" };
+    if (upper.includes("HDG")) return { fontWeight: 700, color: "#777" };
 
     return {};
   };
@@ -200,15 +177,9 @@ export default function Page() {
       <div style={{ position: "relative", marginBottom: 30 }}>
         <input
           value={location}
-          onChange={(e) =>
-            handleLocationChange(e.target.value)
-          }
+          onChange={(e) => handleLocationChange(e.target.value)}
           placeholder="Enter Location"
-          style={{
-            padding: 10,
-            width: 300,
-            fontSize: 16
-          }}
+          style={{ padding: 10, width: 300, fontSize: 16 }}
         />
 
         {suggestions.length > 0 && (
@@ -226,10 +197,7 @@ export default function Page() {
             {suggestions.map((s) => (
               <div
                 key={s}
-                style={{
-                  padding: 8,
-                  cursor: "pointer"
-                }}
+                style={{ padding: 8, cursor: "pointer" }}
                 onClick={() => {
                   setLocation(s);
                   setSuggestions([]);
@@ -275,10 +243,7 @@ export default function Page() {
         >
           <div>
             <strong>{row.location}</strong> —{" "}
-            <span style={getItemStyle(row.item)}>
-              {row.item}
-            </span>{" "}
-            {row.size} — QTY:{" "}
+            <span style={getItemStyle(row.item)}>{row.item}</span> {row.size} — QTY:{" "}
             {row.qty?.toLocaleString()}
           </div>
 
@@ -295,17 +260,11 @@ export default function Page() {
       {/* OUTSTANDING SECTION */}
       <hr style={{ margin: "40px 0" }} />
 
-      <h3
-        style={{
-          marginBottom: 15,
-          letterSpacing: 1.5,
-          fontWeight: 700
-        }}
-      >
+      <h3 style={{ marginBottom: 15, letterSpacing: 1.5, fontWeight: 700 }}>
         OUTSTANDING
       </h3>
 
-            {/* RESET BUTTON */}
+      {/* RESET BUTTON */}
       <div style={{ marginBottom: 15 }}>
         <button
           onClick={resetAllStockChecks}
@@ -320,12 +279,8 @@ export default function Page() {
             fontWeight: 600,
             transition: "0.2s"
           }}
-          onMouseOver={(e) =>
-            (e.currentTarget.style.backgroundColor = "#b71c1c")
-          }
-          onMouseOut={(e) =>
-            (e.currentTarget.style.backgroundColor = "#c62828")
-          }
+          onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#b71c1c")}
+          onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#c62828")}
         >
           Reset All Stock Checks
         </button>
@@ -333,10 +288,7 @@ export default function Page() {
 
       {/* FILTERS */}
       <div style={{ display: "flex", gap: 10, marginBottom: 15 }}>
-        <select
-          value={filterArea}
-          onChange={(e) => setFilterArea(e.target.value)}
-        >
+        <select value={filterArea} onChange={(e) => setFilterArea(e.target.value)}>
           <option value="">All Areas</option>
           <option value="GWS">GWS</option>
           <option value="W3">W3</option>
@@ -346,14 +298,10 @@ export default function Page() {
         <input
           placeholder="Location begins with"
           value={filterLocation}
-          onChange={(e) =>
-            setFilterLocation(e.target.value.toUpperCase())
-          }
+          onChange={(e) => setFilterLocation(e.target.value.toUpperCase())}
         />
 
-        <button onClick={loadOutstanding}>
-          Load
-        </button>
+        <button onClick={loadOutstanding}>Load</button>
       </div>
 
       {/* EXPORT BUTTON */}
@@ -361,11 +309,7 @@ export default function Page() {
         <div style={{ marginBottom: 10 }}>
           <button
             onClick={exportOutstandingCSV}
-            style={{
-              padding: "6px 12px",
-              fontSize: 14,
-              cursor: "pointer"
-            }}
+            style={{ padding: "6px 12px", fontSize: 14, cursor: "pointer" }}
           >
             Export CSV
           </button>
@@ -373,13 +317,7 @@ export default function Page() {
       )}
 
       {/* TABLE */}
-      <table
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          fontSize: 14
-        }}
-      >
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
         <thead>
           <tr style={{ borderBottom: "2px solid #ccc" }}>
             <th align="left">Location</th>
@@ -389,21 +327,16 @@ export default function Page() {
           </tr>
         </thead>
         <tbody>
-          {outstandingRows.map((row) => (
-            <tr
-              key={row.id}
-              style={{ borderBottom: "1px solid #eee" }}
-            >
-              <td>{row.location}</td>
-              <td style={getItemStyle(row.item)}>
-                {row.item}
-              </td>
-              <td>{row.size}</td>
-              <td align="right">
-                {row.qty?.toLocaleString()}
-              </td>
-            </tr>
-          ))}
+          {[...outstandingRows]
+            .sort((a, b) => a.location.localeCompare(b.location))
+            .map((row) => (
+              <tr key={row.id} style={{ borderBottom: "1px solid #eee" }}>
+                <td>{row.location}</td>
+                <td style={getItemStyle(row.item)}>{row.item}</td>
+                <td>{row.size}</td>
+                <td align="right">{row.qty?.toLocaleString()}</td>
+              </tr>
+            ))}
         </tbody>
       </table>
     </div>
