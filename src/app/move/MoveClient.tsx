@@ -37,31 +37,35 @@ export default function MoveClient() {
      MOVE
   ============================== */
 
-  const handleMove = async (targetArea: string) => {
-    if (!previewRows.length) return;
+ const handleMove = async (targetArea: string) => {
+  if (!previewRows.length) return;
 
-    const confirmMove = confirm(
-      `Move ${previewRows.length} row(s) to ${targetArea}?`
-    );
+  const confirmMove = confirm(
+    `Move ${previewRows.length} row(s) to ${targetArea}?`
+  );
+  if (!confirmMove) return;
 
-    if (!confirmMove) return;
+  setLoading(true);
 
-    setLoading(true);
+  await fetch("/api/move", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location,
+      target: targetArea
+    })
+  });
 
-    await fetch("/api/move", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location,
-        target: targetArea
-      })
-    });
+  alert("Move complete");
 
-    alert("Move complete");
+  // ✅ AUTO RESET
+  setLocation("");
+  setPreviewRows([]);
+  setSuggestions([]);
 
-    await handlePreview(location);
-    setLoading(false);
-  };
+  setLoading(false);
+};
+
 
   /* ==============================
      AUTOCOMPLETE
