@@ -188,7 +188,21 @@ export default function MoveClient() {
           }}
         >
           {row.location}
+
         </div>
+{row.area && (
+  <div
+    style={{
+      fontSize: 14,
+      fontWeight: 600,
+      color: "#666",
+      marginTop: 2,
+      marginBottom: 6
+    }}
+  >
+    AREA: {row.area}
+  </div>
+)}
 
         {/* ITEM + SIZE */}
         <div
