@@ -242,7 +242,15 @@ export default function Page() {
           }}
         >
           <div>
-            <strong>{row.location}</strong> —{" "}
+           <strong>
+  {row.location}
+  {row.area && (
+    <span style={{ color: "#777", fontWeight: 400, marginLeft: 6 }}>
+      ({row.area})
+    </span>
+  )}
+</strong> —{" "}
+
             <span style={getItemStyle(row.item)}>{row.item}</span> {row.size} — QTY:{" "}
             {row.qty?.toLocaleString()}
           </div>
@@ -321,6 +329,7 @@ export default function Page() {
         <thead>
           <tr style={{ borderBottom: "2px solid #ccc" }}>
             <th align="left">Location</th>
+	    <th align="left">Area</th>
             <th align="left">Item</th>
             <th align="left">Size</th>
             <th align="right">Qty</th>
@@ -332,9 +341,12 @@ export default function Page() {
             .map((row) => (
               <tr key={row.id} style={{ borderBottom: "1px solid #eee" }}>
                 <td>{row.location}</td>
-                <td style={getItemStyle(row.item)}>{row.item}</td>
-                <td>{row.size}</td>
-                <td align="right">{row.qty?.toLocaleString()}</td>
+                <td>{row.location}</td>
+		<td>{row.area}</td>
+		<td style={getItemStyle(row.item)}>{row.item}</td>
+		<td>{row.size}</td>
+		<td align="right">{row.qty?.toLocaleString()}</td>
+
               </tr>
             ))}
         </tbody>
