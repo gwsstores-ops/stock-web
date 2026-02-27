@@ -325,32 +325,38 @@ export default function Page() {
       )}
 
       {/* TABLE */}
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-        <thead>
-          <tr style={{ borderBottom: "2px solid #ccc" }}>
-            <th align="left">Location</th>
-	    <th align="left">Area</th>
-            <th align="left">Item</th>
-            <th align="left">Size</th>
-            <th align="right">Qty</th>
-          </tr>
-        </thead>
-        <tbody>
-          {[...outstandingRows]
-            .sort((a, b) => a.location.localeCompare(b.location))
-            .map((row) => (
-              <tr key={row.id} style={{ borderBottom: "1px solid #eee" }}>
-                <td>{row.location}</td>
-                <td>{row.location}</td>
-		<td>{row.area}</td>
-		<td style={getItemStyle(row.item)}>{row.item}</td>
-		<td>{row.size}</td>
-		<td align="right">{row.qty?.toLocaleString()}</td>
+<table
+  style={{
+    width: "100%",
+    borderCollapse: "collapse",
+    fontSize: 14
+  }}
+>
+  <thead>
+    <tr style={{ borderBottom: "2px solid #ccc" }}>
+      <th align="left">Location</th>
+      <th align="left">Item</th>
+      <th align="left">Size</th>
+      <th align="right">Qty</th>
+    </tr>
+  </thead>
 
-              </tr>
-            ))}
-        </tbody>
-      </table>
+  <tbody>
+    {outstandingRows
+      .slice()
+      .sort((a, b) => a.location.localeCompare(b.location))
+      .map((row) => (
+        <tr key={row.id} style={{ borderBottom: "1px solid #eee" }}>
+          <td>{row.location}</td>
+          <td style={getItemStyle(row.item)}>{row.item}</td>
+          <td>{row.size}</td>
+          <td align="right">{row.qty?.toLocaleString()}</td>
+        </tr>
+      ))}
+  </tbody>
+</table>
+
+
     </div>
   );
 }
