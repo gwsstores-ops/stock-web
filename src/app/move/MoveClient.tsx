@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 type Row = {
   id: number;
   location: string;
+  area?: string
   item: string;
   size: string;
   qty: number;
