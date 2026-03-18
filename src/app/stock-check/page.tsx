@@ -1,4 +1,4 @@
-f"use client";
+"use client";
 
 import { useState } from "react";
 
@@ -229,23 +229,7 @@ export default function Page() {
         </div>
       )}
 
-           {/* LOCATION RESULTS */}
-      {rows.length > 0 && (
-        <div
-          style={{
-            marginBottom: 10,
-            padding: "8px 12px",
-            background: "#fff8e1",
-            border: "1px solid #f0d98c",
-            borderRadius: 4,
-            fontSize: 14,
-            color: "#6b5b00"
-          }}
-        >
-          Note: Qty = 0 means quantity is unknown.
-        </div>
-      )}
-
+      {/* LOCATION RESULTS */}
       {rows.map((row) => (
         <div
           key={row.id}
@@ -258,16 +242,17 @@ export default function Page() {
           }}
         >
           <div>
-            <strong>
-              {row.location}
-              {row.area && (
-                <span style={{ color: "#777", fontWeight: 400, marginLeft: 6 }}>
-                  ({row.area})
-                </span>
-              )}
-            </strong>{" "}
-            — <span style={getItemStyle(row.item)}>{row.item}</span> {row.size} — QTY:{" "}
-            {row.qty === null ? "" : row.qty.toLocaleString()}
+           <strong>
+  {row.location}
+  {row.area && (
+    <span style={{ color: "#777", fontWeight: 400, marginLeft: 6 }}>
+      ({row.area})
+    </span>
+  )}
+</strong> —{" "}
+
+            <span style={getItemStyle(row.item)}>{row.item}</span> {row.size} — QTY:{" "}
+            {row.qty?.toLocaleString()}
           </div>
 
           <input
@@ -279,7 +264,6 @@ export default function Page() {
           />
         </div>
       ))}
-
 
       {/* OUTSTANDING SECTION */}
       <hr style={{ margin: "40px 0" }} />
