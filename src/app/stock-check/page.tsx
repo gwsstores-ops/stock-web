@@ -172,10 +172,7 @@ export default function Page() {
 
   return (
     <main className="page-shell page-shell-wide">
-      <AppHeader
-        title="Stock Check"
-        subtitle="Review a location and record completed stock checks."
-      />
+      <AppHeader title="Stock Check" />
 
       <section className="panel">
         <div className="section-heading">
@@ -285,7 +282,6 @@ export default function Page() {
           <div>
             <p className="section-kicker">Outstanding</p>
             <h2>Unchecked stock</h2>
-            <p>Filter the outstanding list or export it as a CSV.</p>
           </div>
         </div>
 

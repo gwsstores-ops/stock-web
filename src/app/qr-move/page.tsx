@@ -74,10 +74,7 @@ export default function QrMovePage() {
 
   return (
     <main className="page-shell">
-      <AppHeader
-        title="QR Move"
-        subtitle="Scan a warehouse location and open it on the Move screen."
-      />
+      <AppHeader title="QR Move" />
 
       <section className="panel scanner-panel">
         <div className="scanner-icon">
@@ -86,11 +83,6 @@ export default function QrMovePage() {
         <div className="scanner-title">
           {scanning ? "Camera ready" : "Scan a location"}
         </div>
-        <p className="scanner-copy">
-          Hold the QR code inside the camera frame. The matching location will
-          open automatically.
-        </p>
-
         {!scanning ? (
           <button
             type="button"

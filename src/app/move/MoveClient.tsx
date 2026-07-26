@@ -167,17 +167,13 @@ export default function MoveClient() {
 
   return (
     <main className="page-shell">
-      <AppHeader
-        title="Move Stock"
-        subtitle="Find a location, check its contents and choose a destination."
-      />
+      <AppHeader title="Move Stock" />
 
       <section className="panel">
         <div className="section-heading">
           <div>
             <p className="section-kicker">Step 1</p>
             <h2>Find a location</h2>
-            <p>Type any part of the location code.</p>
           </div>
         </div>
 
@@ -257,7 +253,6 @@ export default function MoveClient() {
           <div>
             <p className="section-kicker">Step 2</p>
             <h2>Move to</h2>
-            <p>Choose the destination area.</p>
           </div>
         </div>
 
@@ -285,12 +280,6 @@ export default function MoveClient() {
             );
           })}
         </div>
-
-        {previewRows.length === 0 && (
-          <p className="helper-text">
-            Select a location above before choosing its destination.
-          </p>
-        )}
       </section>
     </main>
   );

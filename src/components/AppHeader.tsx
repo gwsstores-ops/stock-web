@@ -3,13 +3,11 @@ import { ReactNode } from "react";
 
 type AppHeaderProps = {
   title: string;
-  subtitle: string;
   children?: ReactNode;
 };
 
 export default function AppHeader({
   title,
-  subtitle,
   children
 }: AppHeaderProps) {
   return (
@@ -26,9 +24,7 @@ export default function AppHeader({
       </div>
 
       <div className="page-heading">
-        <p className="eyebrow">Warehouse stock system</p>
         <h1>{title}</h1>
-        <p className="page-subtitle">{subtitle}</p>
       </div>
 
       {children}

@@ -218,10 +218,7 @@ export default function Page() {
 
   return (
     <main className="page-shell">
-      <AppHeader
-        title="Stock Search"
-        subtitle="Find stock across GWS, W3 and W4."
-      >
+      <AppHeader title="Stock Search">
         <div className="header-stats">
           <div className="stat-card">
             <span className="stat-dot stat-dot-w3" />
@@ -246,7 +243,6 @@ export default function Page() {
           <div>
             <p className="section-kicker">Search filters</p>
             <h2>Choose an item</h2>
-            <p>The next available option will load automatically.</p>
           </div>
         </div>
 
