@@ -1,17 +1,10 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import Image from "next/image";
 import AppHeader from "@/components/AppHeader";
-
-type Row = {
-  id: number;
-  location: string;
-  area: string;
-  item: string;
-  size: string;
-  qty: number | null;
-};
+import SearchResults, {
+  type SearchResultRow
+} from "@/components/SearchResults";
 
 export default function Page() {
   const [cat, setCat] = useState("");
@@ -23,7 +16,7 @@ export default function Page() {
   const [items, setItems] = useState<string[]>([]);
   const [diameters, setDiameters] = useState<string[]>([]);
   const [lengths, setLengths] = useState<string[]>([]);
-  const [rows, setRows] = useState<Row[]>([]);
+  const [rows, setRows] = useState<SearchResultRow[]>([]);
 
   const [locationCounts, setLocationCounts] = useState({
     W3: 0,
@@ -34,8 +27,6 @@ export default function Page() {
   const diamRef = useRef<HTMLSelectElement>(null);
   const lengthRef = useRef<HTMLSelectElement>(null);
   const catRef = useRef<HTMLSelectElement>(null);
-
-  const allowedAreas = ["GWS", "W3", "W4"];
 
   // LOAD COUNTS
   useEffect(() => {
@@ -177,26 +168,6 @@ export default function Page() {
     setRows([]);
   };
 
-  const areaIcon = (area: string) => {
-    if (area === "GWS") return "/gws.png";
-    if (area === "W3") return "/w3.png";
-    if (area === "W4") return "/w4.png";
-    return "";
-  };
-
-  const filteredRows = rows.filter(row =>
-    allowedAreas.includes(row.area)
-  );
-
-  const grouped = filteredRows.reduce<Record<string, Row[]>>(
-    (acc, row) => {
-      if (!acc[row.area]) acc[row.area] = [];
-      acc[row.area].push(row);
-      return acc;
-    },
-    {}
-  );
-
   const resetAll = () => {
     setCat("");
     setItem("");
@@ -207,13 +178,6 @@ export default function Page() {
     setLengths([]);
     setRows([]);
     setTimeout(() => catRef.current?.focus(), 100);
-  };
-
-  const getItemStyle = (item: string): React.CSSProperties => {
-    if (item.toUpperCase().includes("HDG")) {
-      return { color: "#777" };
-    }
-    return {};
   };
 
   return (
@@ -310,64 +274,7 @@ export default function Page() {
         </div>
       </section>
 
-      {rows.length > 0 && (
-        <>
-          <section className="panel panel-flat product-summary">
-            <div>
-              <p className="section-kicker">Current selection</p>
-              <div
-                className="product-name"
-                style={getItemStyle(rows[0].item)}
-              >
-                {rows[0].item}
-              </div>
-            </div>
-            <span className="product-size">{rows[0].size}</span>
-          </section>
-
-          <div className="qty-unknown-note" role="note">
-            QTY 1 = QTY UNKNOWN
-          </div>
-        </>
-      )}
-
-      <div aria-live="polite">
-        {["GWS", "W3", "W4"]
-          .filter(area => grouped[area])
-          .map(area => (
-            <section key={area} className="panel area-section">
-              <div
-                className={`area-header area-header-${area.toLowerCase()}`}
-              >
-                <Image
-                  src={areaIcon(area)}
-                  className="area-icon"
-                  alt={area}
-                  width={42}
-                  height={42}
-                />
-                <div className="area-title">{area}</div>
-                <div className="area-count">
-                  {grouped[area].length} location
-                  {grouped[area].length === 1 ? "" : "s"}
-                </div>
-              </div>
-
-              <div className="location-list">
-                {grouped[area]
-                  .sort((a, b) => a.location.localeCompare(b.location))
-                  .map(row => (
-                  <div key={row.id} className="location-row">
-                    <span className="location-code">{row.location}</span>
-                    <span className="qty-pill">
-                      QTY&nbsp; <strong>{(row.qty ?? 0).toLocaleString()}</strong>
-                    </span>
-                  </div>
-                  ))}
-              </div>
-            </section>
-          ))}
-      </div>
+      <SearchResults rows={rows} />
     </main>
   );
 }

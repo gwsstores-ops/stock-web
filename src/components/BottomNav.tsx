@@ -11,13 +11,18 @@ const items = [
     icon: "/search-icon.png"
   },
   {
+    href: "/qr-search",
+    label: "QR Search",
+    icon: "/qr-icon.png"
+  },
+  {
     href: "/move",
     label: "Move",
     icon: "/move-icon.png"
   },
   {
     href: "/qr-move",
-    label: "QR Scan",
+    label: "QR Move",
     icon: "/qr-icon.png"
   }
 ];
