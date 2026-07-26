@@ -775,6 +775,10 @@ select.control {
   transition: color 150ms ease, background 150ms ease;
 }
 
+.nav-item:nth-child(3) {
+  grid-column: 4;
+}
+
 .nav-item-active {
   color: var(--navy-900);
   background: var(--blue-100);
