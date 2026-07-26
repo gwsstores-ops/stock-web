@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useRef } from "react";
+import type { Html5Qrcode } from "html5-qrcode";
+import Image from "next/image";
+import AppHeader from "@/components/AppHeader";
 
 export default function QrMovePage() {
-  const qrRef = useRef<any>(null);
+  const qrRef = useRef<Html5Qrcode | null>(null);
   const [scanning, setScanning] = useState(false);
 
   const startScanner = async () => {
@@ -35,11 +38,11 @@ export default function QrMovePage() {
                 decodedText
               )}`;
             })
-            .catch((err: any) => {
+            .catch((err: unknown) => {
               console.error("Error stopping scanner:", err);
             });
         },
-        (errorMessage: string) => {
+        () => {
           // Ignore scan noise (camera throws constant decode errors while scanning)
           // console.log("Scan error (normal while scanning):", errorMessage);
         }
@@ -55,9 +58,13 @@ export default function QrMovePage() {
   const stopScanner = async () => {
     try {
       if (qrRef.current) {
-        // best-effort stop/clear (don’t crash UI if already stopped)
+        // Best-effort stop/clear (don’t crash UI if already stopped).
         await qrRef.current.stop().catch(() => {});
-        await qrRef.current.clear().catch(() => {});
+        try {
+          qrRef.current.clear();
+        } catch {
+          // The scanner may already be clear.
+        }
         qrRef.current = null;
       }
     } finally {
@@ -66,49 +73,44 @@ export default function QrMovePage() {
   };
 
   return (
-    <div style={{ padding: 30, maxWidth: 700, margin: "0 auto" }}>
-      <h2 style={{ marginBottom: 16 }}>QR Move</h2>
+    <main className="page-shell">
+      <AppHeader
+        title="QR Move"
+        subtitle="Scan a warehouse location and open it on the Move screen."
+      />
 
-      {!scanning && (
-        <button
-          onClick={startScanner}
-          style={{
-            width: "100%",
-            padding: "18px 0",
-            fontSize: 24,
-            fontWeight: 800,
-            backgroundColor: "#0d47a1",
-            color: "#fff",
-            border: "none",
-            borderRadius: 10,
-            cursor: "pointer",
-            letterSpacing: 3,
-            boxShadow: "0 4px 10px rgba(0,0,0,0.2)"
-          }}
-        >
-          SCAN
-        </button>
-      )}
+      <section className="panel scanner-panel">
+        <div className="scanner-icon">
+          <Image src="/qr-icon.png" alt="" width={38} height={38} />
+        </div>
+        <div className="scanner-title">
+          {scanning ? "Camera ready" : "Scan a location"}
+        </div>
+        <p className="scanner-copy">
+          Hold the QR code inside the camera frame. The matching location will
+          open automatically.
+        </p>
 
-      {scanning && (
-        <button
-          onClick={stopScanner}
-          style={{
-            width: "100%",
-            padding: "14px 0",
-            fontSize: 18,
-            fontWeight: 700,
-            backgroundColor: "#eee",
-            border: "1px solid #ccc",
-            borderRadius: 10,
-            cursor: "pointer"
-          }}
-        >
-          Stop Scanning
-        </button>
-      )}
+        {!scanning ? (
+          <button
+            type="button"
+            onClick={startScanner}
+            className="button button-primary button-block"
+          >
+            Start camera
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={stopScanner}
+            className="button button-secondary button-block"
+          >
+            Stop scanning
+          </button>
+        )}
 
-      <div id="qr-reader" style={{ width: "100%", marginTop: 20 }} />
-    </div>
+        <div id="qr-reader" />
+      </section>
+    </main>
   );
 }

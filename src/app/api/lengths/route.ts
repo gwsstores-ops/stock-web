@@ -12,7 +12,8 @@ export async function GET(request: Request) {
     .select("length_display")
     .eq("cat", cat)
     .eq("item", item)
-    .eq("diam_display", diam);
+    .eq("diam_display", diam)
+    .in("area", ["GWS", "W3", "W4"]);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

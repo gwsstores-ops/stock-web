@@ -10,7 +10,8 @@ export async function GET(request: Request) {
     .from("stock")
     .select("diam_display")
     .eq("cat", cat)
-    .eq("item", item);
+    .eq("item", item)
+    .in("area", ["GWS", "W3", "W4"]);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

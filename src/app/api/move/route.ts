@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+type StockRow = {
+  id: number;
+  location: string;
+  item: string;
+  size: string;
+  qty: number | null;
+  area: string;
+};
+
 export async function POST(req: Request) {
   try {
     const { location, target } = await req.json();
@@ -17,16 +26,19 @@ export async function POST(req: Request) {
     // 1️⃣ Get rows that will be moved
     const { data: rows, error: fetchError } = await supabase
       .from("stock")
-      .select("*")
+      .select("id, location, item, size, qty, area")
       .ilike("location", `${location}%`);
 
     if (fetchError) throw fetchError;
     if (!rows || rows.length === 0) {
-      return NextResponse.json({ message: "No rows found" });
+      return NextResponse.json(
+        { error: "No matching stock rows were found" },
+        { status: 404 }
+      );
     }
 
     // 2️⃣ Insert audit entries (one per row)
-    const logEntries = rows.map((row: any) => ({
+    const logEntries = rows.map((row: StockRow) => ({
       stock_id: row.id,
       location: row.location,
       item: row.item,
@@ -54,9 +66,11 @@ export async function POST(req: Request) {
       message: `Moved ${rows.length} row(s)`
     });
 
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Move failed";
+
     return NextResponse.json(
-      { error: err.message || "Move failed" },
+      { error: message },
       { status: 500 }
     );
   }

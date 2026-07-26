@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Image from "next/image";
+import AppHeader from "@/components/AppHeader";
 
 type Row = {
   id: number;
@@ -35,14 +37,6 @@ export default function Page() {
 
   const allowedAreas = ["GWS", "W3", "W4"];
 
-  const selectStyle: React.CSSProperties = {
-    padding: "10px 12px",
-    fontSize: 16,
-    borderRadius: 6,
-    border: "1px solid #ccc",
-    background: "#fff"
-  };
-
   // LOAD COUNTS
   useEffect(() => {
     fetch("/api/location-counts")
@@ -66,12 +60,7 @@ export default function Page() {
   useEffect(() => {
     if (!cat) return;
 
-    setItem("");
-    setDiam("");
-    setLength("");
-    setRows([]);
-
-    fetch(`/api/items?cat=${cat}`)
+    fetch(`/api/items?cat=${encodeURIComponent(cat)}`)
       .then(res => res.json())
       .then(data => {
         const list = data.items || [];
@@ -88,15 +77,13 @@ export default function Page() {
   useEffect(() => {
     if (!item) return;
 
-    setDiam("");
-    setLength("");
-    setRows([]);
-
-    fetch(`/api/diameters?cat=${cat}&item=${item}`)
+    fetch(
+      `/api/diameters?cat=${encodeURIComponent(cat)}&item=${encodeURIComponent(item)}`
+    )
       .then(res => res.json())
       .then(data => {
         const list = (data.diameters || []).map(
-          (d: any) => d.diam_display
+          (d: { diam_display: string }) => d.diam_display
         );
 
         const sorted = list.sort(
@@ -110,24 +97,25 @@ export default function Page() {
           setTimeout(() => diamRef.current?.focus(), 100);
         }
       });
-  }, [item]);
+  }, [cat, item]);
 
   // DIAM CHANGED
   useEffect(() => {
     if (!diam) return;
 
-    setLength("");
-    setRows([]);
-
-    fetch(`/api/lengths?cat=${cat}&item=${item}&diam=${diam}`)
+    fetch(
+      `/api/lengths?cat=${encodeURIComponent(cat)}&item=${encodeURIComponent(item)}&diam=${encodeURIComponent(diam)}`
+    )
       .then(res => res.json())
       .then(data => {
         const list = (data.lengths || []).map(
-          (l: any) => l.length_display
+          (l: { length_display: string }) => l.length_display
         );
 
         if (list.length === 0) {
-          fetch(`/api/search?cat=${cat}&item=${item}&diam=${diam}`)
+          fetch(
+            `/api/search?cat=${encodeURIComponent(cat)}&item=${encodeURIComponent(item)}&diam=${encodeURIComponent(diam)}`
+          )
             .then(res => res.json())
             .then(data => setRows(data.rows || []));
           return;
@@ -144,18 +132,50 @@ export default function Page() {
           setTimeout(() => lengthRef.current?.focus(), 100);
         }
       });
-  }, [diam]);
+  }, [cat, item, diam]);
 
   // LENGTH CHANGED
   useEffect(() => {
     if (!length) return;
 
     fetch(
-      `/api/search?cat=${cat}&item=${item}&diam=${diam}&length=${length}`
+      `/api/search?cat=${encodeURIComponent(cat)}&item=${encodeURIComponent(item)}&diam=${encodeURIComponent(diam)}&length=${encodeURIComponent(length)}`
     )
       .then(res => res.json())
       .then(data => setRows(data.rows || []));
-  }, [length]);
+  }, [cat, item, diam, length]);
+
+  const handleCategoryChange = (value: string) => {
+    setCat(value);
+    setItem("");
+    setDiam("");
+    setLength("");
+    setItems([]);
+    setDiameters([]);
+    setLengths([]);
+    setRows([]);
+  };
+
+  const handleItemChange = (value: string) => {
+    setItem(value);
+    setDiam("");
+    setLength("");
+    setDiameters([]);
+    setLengths([]);
+    setRows([]);
+  };
+
+  const handleDiameterChange = (value: string) => {
+    setDiam(value);
+    setLength("");
+    setLengths([]);
+    setRows([]);
+  };
+
+  const handleLengthChange = (value: string) => {
+    setLength(value);
+    setRows([]);
+  };
 
   const areaIcon = (area: string) => {
     if (area === "GWS") return "/gws.png";
@@ -197,107 +217,155 @@ export default function Page() {
   };
 
   return (
-    <div style={{ padding: "18px 14px 24px", maxWidth: 700, margin: "0 auto" }}>
-
-      {/* HEADER WITH SMALLER COUNTS */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 18
-        }}
+    <main className="page-shell">
+      <AppHeader
+        title="Stock Search"
+        subtitle="Find stock across GWS, W3 and W4."
       >
-        <div style={{ textAlign: "center", minWidth: 90 }}>
-          <div style={{ fontSize: 13, color: "#777" }}>W3 PALLETS</div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: "#444" }}>
-            {locationCounts.W3}
+        <div className="header-stats">
+          <div className="stat-card">
+            <span className="stat-dot stat-dot-w3" />
+            <div>
+              <div className="stat-label">W3 pallets</div>
+              <div className="stat-value">{locationCounts.W3}</div>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <span className="stat-dot stat-dot-w4" />
+            <div>
+              <div className="stat-label">W4 pallets</div>
+              <div className="stat-value">{locationCounts.W4}</div>
+            </div>
+          </div>
+        </div>
+      </AppHeader>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="section-kicker">Search filters</p>
+            <h2>Choose an item</h2>
+            <p>The next available option will load automatically.</p>
           </div>
         </div>
 
-        <img src="/logo.png" height={58} />
+        <div className="form-stack form-grid">
+          <label className="field">
+            <span className="field-label">Category</span>
+            <select
+              ref={catRef}
+              value={cat}
+              onChange={e => handleCategoryChange(e.target.value)}
+              className="control"
+            >
+              <option value="">Select category</option>
+              {categories.map(c => <option key={c}>{c}</option>)}
+            </select>
+          </label>
 
-        <div style={{ textAlign: "center", minWidth: 90 }}>
-          <div style={{ fontSize: 13, color: "#777" }}>W4 PALLETS</div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: "#444" }}>
-            {locationCounts.W4}
-          </div>
+          <label className="field">
+            <span className="field-label">Item</span>
+            <select
+              ref={itemRef}
+              value={item}
+              onChange={e => handleItemChange(e.target.value)}
+              className="control"
+              disabled={!cat}
+            >
+              <option value="">Select item</option>
+              {items.map(i => <option key={i}>{i}</option>)}
+            </select>
+          </label>
+
+          <label className="field">
+            <span className="field-label">Diameter</span>
+            <select
+              ref={diamRef}
+              value={diam}
+              onChange={e => handleDiameterChange(e.target.value)}
+              className="control"
+              disabled={!item}
+            >
+              <option value="">Select diameter</option>
+              {diameters.map(d => <option key={d}>{d}</option>)}
+            </select>
+          </label>
+
+          <label className="field">
+            <span className="field-label">Length</span>
+            <select
+              ref={lengthRef}
+              value={length}
+              onChange={e => handleLengthChange(e.target.value)}
+              className="control"
+              disabled={!diam || lengths.length === 0}
+            >
+              <option value="">Select length</option>
+              {lengths.map(l => <option key={l}>{l}</option>)}
+            </select>
+          </label>
         </div>
-      </div>
 
-      {/* DROPDOWNS */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <select ref={catRef} value={cat} onChange={e => setCat(e.target.value)} style={selectStyle}>
-          <option value="">CAT</option>
-          {categories.map(c => <option key={c}>{c}</option>)}
-        </select>
+        <div className="button-row">
+          <button onClick={resetAll} className="button button-secondary">
+            Reset search
+          </button>
+        </div>
+      </section>
 
-        <select ref={itemRef} value={item} onChange={e => setItem(e.target.value)} style={selectStyle}>
-          <option value="">ITEM</option>
-          {items.map(i => <option key={i}>{i}</option>)}
-        </select>
-
-        <select ref={diamRef} value={diam} onChange={e => setDiam(e.target.value)} style={selectStyle}>
-          <option value="">DIAMETER</option>
-          {diameters.map(d => <option key={d}>{d}</option>)}
-        </select>
-
-        <select ref={lengthRef} value={length} onChange={e => setLength(e.target.value)} style={selectStyle}>
-          <option value="">LENGTH</option>
-          {lengths.map(l => <option key={l}>{l}</option>)}
-        </select>
-
-        <button
-          onClick={resetAll}
-          style={{
-            marginTop: 8,
-            padding: "10px 14px",
-            backgroundColor: "#eee",
-            border: "1px solid #ccc",
-            borderRadius: 6,
-            cursor: "pointer",
-            fontSize: 15
-          }}
-        >
-          Reset
-        </button>
-      </div>
-
-      {/* TITLE */}
       {rows.length > 0 && (
-        <div style={{ marginTop: 24, marginBottom: 16 }}>
-          <div style={{ fontSize: 20 }}>
-            <span style={{ fontWeight: 700, ...getItemStyle(rows[0].item) }}>
+        <section className="panel panel-flat product-summary">
+          <div>
+            <p className="section-kicker">Current selection</p>
+            <div
+              className="product-name"
+              style={getItemStyle(rows[0].item)}
+            >
               {rows[0].item}
-            </span>
-            <span style={{ marginLeft: 18, color: "#555" }}>
-              {rows[0].size}
-            </span>
+            </div>
           </div>
-        </div>
+          <span className="product-size">{rows[0].size}</span>
+        </section>
       )}
 
-      {/* RESULTS */}
-      <div>
+      <div aria-live="polite">
         {["GWS", "W3", "W4"]
           .filter(area => grouped[area])
           .map(area => (
-            <div key={area} style={{ marginBottom: 28 }}>
-              <div style={{ marginBottom: 8 }}>
-                <img src={areaIcon(area)} width={45} />
+            <section key={area} className="panel area-section">
+              <div
+                className={`area-header area-header-${area.toLowerCase()}`}
+              >
+                <Image
+                  src={areaIcon(area)}
+                  className="area-icon"
+                  alt={area}
+                  width={42}
+                  height={42}
+                />
+                <div className="area-title">{area}</div>
+                <div className="area-count">
+                  {grouped[area].length} location
+                  {grouped[area].length === 1 ? "" : "s"}
+                </div>
               </div>
 
-              {grouped[area]
-                .sort((a, b) => a.location.localeCompare(b.location))
-                .map(row => (
-                  <div key={row.id} style={{ padding: "4px 0", fontSize: 15 }}>
-                    {row.location} → QTY:{" "}
-                    <strong>{(row.qty ?? 0).toLocaleString()}</strong>
+              <div className="location-list">
+                {grouped[area]
+                  .sort((a, b) => a.location.localeCompare(b.location))
+                  .map(row => (
+                  <div key={row.id} className="location-row">
+                    <span className="location-code">{row.location}</span>
+                    <span className="qty-pill">
+                      QTY&nbsp; <strong>{(row.qty ?? 0).toLocaleString()}</strong>
+                    </span>
                   </div>
-                ))}
-            </div>
+                  ))}
+              </div>
+            </section>
           ))}
       </div>
-    </div>
+    </main>
   );
 }

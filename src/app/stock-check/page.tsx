@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import AppHeader from "@/components/AppHeader";
 
 type Row = {
   id: number;
@@ -170,34 +171,39 @@ export default function Page() {
   };
 
   return (
-    <div style={{ padding: 30, maxWidth: 900, margin: "0 auto" }}>
-      <h2 style={{ marginBottom: 20 }}>Stock Check</h2>
+    <main className="page-shell page-shell-wide">
+      <AppHeader
+        title="Stock Check"
+        subtitle="Review a location and record completed stock checks."
+      />
 
-      {/* INPUT + AUTOCOMPLETE */}
-      <div style={{ position: "relative", marginBottom: 30 }}>
-        <input
-          value={location}
-          onChange={(e) => handleLocationChange(e.target.value)}
-          placeholder="Enter Location"
-          style={{ padding: 10, width: 300, fontSize: 16 }}
-        />
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="section-kicker">Location lookup</p>
+            <h2>Find stock to check</h2>
+          </div>
+        </div>
+
+        <div className="autocomplete">
+          <label className="field">
+            <span className="field-label">Location</span>
+            <input
+              value={location}
+              onChange={(e) => handleLocationChange(e.target.value)}
+              placeholder="Enter location"
+              className="control"
+              autoComplete="off"
+            />
+          </label>
 
         {suggestions.length > 0 && (
-          <div
-            style={{
-              position: "absolute",
-              top: 42,
-              left: 0,
-              width: 300,
-              background: "white",
-              border: "1px solid #ccc",
-              zIndex: 10
-            }}
-          >
+          <div className="suggestions" role="listbox">
             {suggestions.map((s) => (
-              <div
+              <button
+                type="button"
                 key={s}
-                style={{ padding: 8, cursor: "pointer" }}
+                className="suggestion"
                 onClick={() => {
                   setLocation(s);
                   setSuggestions([]);
@@ -205,158 +211,170 @@ export default function Page() {
                 }}
               >
                 {s}
-              </div>
+              </button>
             ))}
           </div>
         )}
-      </div>
-
-      {/* CHECK ALL BUTTON */}
-      {rows.length > 1 && (
-        <div style={{ marginBottom: 15 }}>
-          <button
-            onClick={markAllChecked}
-            disabled={allChecked}
-            style={{
-              padding: "6px 12px",
-              fontSize: 14,
-              cursor: allChecked ? "not-allowed" : "pointer",
-              opacity: allChecked ? 0.6 : 1
-            }}
-          >
-            Check All
-          </button>
         </div>
-      )}
+      </section>
 
-      {/* LOCATION RESULTS */}
-      {rows.map((row) => (
-        <div
-          key={row.id}
-          style={{
-            padding: 10,
-            borderBottom: "1px solid #eee",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center"
-          }}
-        >
-          <div>
-           <strong>
-  {row.location}
-  {row.area && (
-    <span style={{ color: "#777", fontWeight: 400, marginLeft: 6 }}>
-      ({row.area})
-    </span>
-  )}
-</strong> —{" "}
+      {rows.length > 0 && (
+        <section className="panel">
+          <div className="section-heading">
+            <div>
+              <p className="section-kicker">Location results</p>
+              <h2>
+                {rows.length} line{rows.length === 1 ? "" : "s"} found
+              </h2>
+            </div>
 
-            <span style={getItemStyle(row.item)}>{row.item}</span> {row.size} — QTY:{" "}
-            {row.qty?.toLocaleString()}
+            {rows.length > 1 && (
+              <button
+                type="button"
+                onClick={markAllChecked}
+                disabled={allChecked}
+                className="button button-secondary"
+              >
+                {allChecked ? "All checked" : "Check all"}
+              </button>
+            )}
           </div>
 
-          <input
-            type="checkbox"
-            checked={row.stock_check === true}
-            disabled={row.stock_check === true}
-            onChange={() => markChecked(row.id)}
-            style={{ width: 18, height: 18 }}
-          />
-        </div>
-      ))}
+          <div>
+            {rows.map((row) => (
+              <div key={row.id} className="check-row">
+                <div>
+                  <div className="check-location">
+                    {row.location}
+                    {row.area && (
+                      <span
+                        className={`area-badge area-badge-${row.area
+                          .toLowerCase()
+                          .replaceAll("_", "-")}`}
+                        style={{ marginLeft: 8 }}
+                      >
+                        {row.area}
+                      </span>
+                    )}
+                  </div>
+                  <div className="check-detail">
+                    <span style={getItemStyle(row.item)}>{row.item}</span>
+                    {" · "}
+                    {row.size}
+                    {" · "}
+                    QTY {row.qty?.toLocaleString() ?? 0}
+                  </div>
+                </div>
 
-      {/* OUTSTANDING SECTION */}
-      <hr style={{ margin: "40px 0" }} />
-
-      <h3 style={{ marginBottom: 15, letterSpacing: 1.5, fontWeight: 700 }}>
-        OUTSTANDING
-      </h3>
-
-      {/* RESET BUTTON */}
-      <div style={{ marginBottom: 15 }}>
-        <button
-          onClick={resetAllStockChecks}
-          style={{
-            padding: "8px 14px",
-            fontSize: 14,
-            backgroundColor: "#c62828",
-            color: "#fff",
-            border: "none",
-            borderRadius: 4,
-            cursor: "pointer",
-            fontWeight: 600,
-            transition: "0.2s"
-          }}
-          onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#b71c1c")}
-          onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#c62828")}
-        >
-          Reset All Stock Checks
-        </button>
-      </div>
-
-      {/* FILTERS */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 15 }}>
-        <select value={filterArea} onChange={(e) => setFilterArea(e.target.value)}>
-          <option value="">All Areas</option>
-          <option value="GWS">GWS</option>
-          <option value="W3">W3</option>
-          <option value="W4">W4</option>
-        </select>
-
-        <input
-          placeholder="Location begins with"
-          value={filterLocation}
-          onChange={(e) => setFilterLocation(e.target.value.toUpperCase())}
-        />
-
-        <button onClick={loadOutstanding}>Load</button>
-      </div>
-
-      {/* EXPORT BUTTON */}
-      {outstandingRows.length > 0 && (
-        <div style={{ marginBottom: 10 }}>
-          <button
-            onClick={exportOutstandingCSV}
-            style={{ padding: "6px 12px", fontSize: 14, cursor: "pointer" }}
-          >
-            Export CSV
-          </button>
-        </div>
+                <input
+                  type="checkbox"
+                  aria-label={`Mark ${row.location} checked`}
+                  checked={row.stock_check === true}
+                  disabled={row.stock_check === true}
+                  onChange={() => markChecked(row.id)}
+                  className="check-box"
+                />
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
-      {/* TABLE */}
-<table
-  style={{
-    width: "100%",
-    borderCollapse: "collapse",
-    fontSize: 14
-  }}
->
-  <thead>
-    <tr style={{ borderBottom: "2px solid #ccc" }}>
-      <th align="left">Location</th>
-      <th align="left">Item</th>
-      <th align="left">Size</th>
-      <th align="right">Qty</th>
-    </tr>
-  </thead>
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="section-kicker">Outstanding</p>
+            <h2>Unchecked stock</h2>
+            <p>Filter the outstanding list or export it as a CSV.</p>
+          </div>
+        </div>
 
-  <tbody>
-    {outstandingRows
-      .slice()
-      .sort((a, b) => a.location.localeCompare(b.location))
-      .map((row) => (
-        <tr key={row.id} style={{ borderBottom: "1px solid #eee" }}>
-          <td>{row.location}</td>
-          <td style={getItemStyle(row.item)}>{row.item}</td>
-          <td>{row.size}</td>
-          <td align="right">{row.qty?.toLocaleString()}</td>
-        </tr>
-      ))}
-  </tbody>
-</table>
+        <div className="outstanding-actions">
+          <button
+            type="button"
+            onClick={resetAllStockChecks}
+            className="button button-danger"
+          >
+            Reset all checks
+          </button>
 
+          {outstandingRows.length > 0 && (
+            <button
+              type="button"
+              onClick={exportOutstandingCSV}
+              className="button button-secondary"
+            >
+              Export CSV
+            </button>
+          )}
+        </div>
 
-    </div>
+        <div className="filter-grid">
+          <label className="field">
+            <span className="field-label">Area</span>
+            <select
+              value={filterArea}
+              onChange={(e) => setFilterArea(e.target.value)}
+              className="control"
+            >
+              <option value="">All areas</option>
+              <option value="GWS">GWS</option>
+              <option value="W3">W3</option>
+              <option value="W4">W4</option>
+            </select>
+          </label>
+
+          <label className="field">
+            <span className="field-label">Location begins with</span>
+            <input
+              placeholder="Optional location filter"
+              value={filterLocation}
+              onChange={(e) => setFilterLocation(e.target.value.toUpperCase())}
+              className="control"
+            />
+          </label>
+
+          <button
+            type="button"
+            onClick={loadOutstanding}
+            className="button button-primary"
+          >
+            Load
+          </button>
+        </div>
+
+        <div className="table-wrap" style={{ marginTop: 16 }}>
+          {outstandingRows.length === 0 ? (
+            <div className="empty-state">
+              Load the list to see outstanding stock checks.
+            </div>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Location</th>
+                  <th>Item</th>
+                  <th>Size</th>
+                  <th>Qty</th>
+                </tr>
+              </thead>
+              <tbody>
+                {outstandingRows
+                  .slice()
+                  .sort((a, b) => a.location.localeCompare(b.location))
+                  .map((row) => (
+                    <tr key={row.id}>
+                      <td>{row.location}</td>
+                      <td style={getItemStyle(row.item)}>{row.item}</td>
+                      <td>{row.size}</td>
+                      <td>{row.qty?.toLocaleString()}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </section>
+    </main>
   );
 }

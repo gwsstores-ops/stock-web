@@ -10,7 +10,10 @@ export async function GET(req: Request) {
     const diam = searchParams.get("diam");
     const length = searchParams.get("length");
 
-    let query = supabase.from("stock").select("*");
+    let query = supabase
+      .from("stock")
+      .select("id, location, area, item, size, qty")
+      .in("area", ["GWS", "W3", "W4"]);
 
     if (cat) query = query.eq("cat", cat);
     if (item) query = query.eq("item", item);
@@ -22,9 +25,11 @@ export async function GET(req: Request) {
     if (error) throw error;
 
     return NextResponse.json({ rows: data });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Search failed";
+
     return NextResponse.json(
-      { error: err.message || "Search failed" },
+      { error: message },
       { status: 500 }
     );
   }

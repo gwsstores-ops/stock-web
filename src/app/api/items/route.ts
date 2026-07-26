@@ -13,6 +13,7 @@ export async function GET(req: Request) {
     .from("stock")
     .select("item")
     .eq("cat", cat)
+    .in("area", ["GWS", "W3", "W4"])
     .not("item", "is", null);
 
   if (error) {

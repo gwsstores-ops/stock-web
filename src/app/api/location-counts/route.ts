@@ -4,7 +4,9 @@ import { supabase } from "@/lib/supabase";
 export async function GET() {
   const { data, error } = await supabase
     .from("stock")
-    .select("area, location");
+    .select("area, location")
+    .in("area", ["W3", "W4"])
+    .not("location", "is", null);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
