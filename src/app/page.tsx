@@ -311,18 +311,24 @@ export default function Page() {
       </section>
 
       {rows.length > 0 && (
-        <section className="panel panel-flat product-summary">
-          <div>
-            <p className="section-kicker">Current selection</p>
-            <div
-              className="product-name"
-              style={getItemStyle(rows[0].item)}
-            >
-              {rows[0].item}
+        <>
+          <section className="panel panel-flat product-summary">
+            <div>
+              <p className="section-kicker">Current selection</p>
+              <div
+                className="product-name"
+                style={getItemStyle(rows[0].item)}
+              >
+                {rows[0].item}
+              </div>
             </div>
+            <span className="product-size">{rows[0].size}</span>
+          </section>
+
+          <div className="qty-unknown-note" role="note">
+            QTY 1 = QTY UNKNOWN
           </div>
-          <span className="product-size">{rows[0].size}</span>
-        </section>
+        </>
       )}
 
       <div aria-live="polite">

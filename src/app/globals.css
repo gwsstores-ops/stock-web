@@ -337,6 +337,18 @@ select.control {
   font-weight: 800;
 }
 
+.qty-unknown-note {
+  padding: 10px 14px;
+  color: #714c00;
+  background: #fff7df;
+  border: 1px solid #ead49b;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-align: center;
+}
+
 .area-section {
   overflow: hidden;
   padding: 0;
