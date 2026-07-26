@@ -45,7 +45,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -733,6 +734,41 @@ select.control {
   font-size: 13px;
 }
 
+.ask-stock-input {
+  min-height: 116px;
+  padding: 14px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.ask-stock-message {
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-align: center;
+}
+
+.ask-stock-success {
+  color: #0d6849;
+  background: var(--green-100);
+  border-color: #b9dfd1;
+}
+
+.ask-stock-empty,
+.ask-stock-error {
+  color: #a51620;
+  background: var(--red-100);
+  border-color: #f0c7ca;
+}
+
+.ask-stock-clarification {
+  color: #714c00;
+  background: var(--amber-100);
+  border-color: #ead49b;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .bottom-nav {
   position: fixed;
   z-index: 100;
@@ -747,8 +783,8 @@ select.control {
 
 .bottom-nav-inner {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  width: min(100%, 680px);
+  grid-template-columns: repeat(5, 1fr);
+  width: min(100%, 780px);
   min-height: 65px;
   margin: 0 auto;
   padding: 4px;
@@ -853,6 +889,15 @@ select.control {
   .destination-icon {
     width: 50px;
     height: 50px;
+  }
+
+  .nav-item {
+    font-size: 8px;
+  }
+
+  .nav-icon {
+    width: 22px;
+    height: 22px;
   }
 }
 
