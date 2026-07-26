@@ -734,41 +734,6 @@ select.control {
   font-size: 13px;
 }
 
-.ask-stock-input {
-  min-height: 116px;
-  padding: 14px;
-  line-height: 1.5;
-  resize: vertical;
-}
-
-.ask-stock-message {
-  font-size: 18px;
-  font-weight: 900;
-  letter-spacing: 0.03em;
-  text-align: center;
-}
-
-.ask-stock-success {
-  color: #0d6849;
-  background: var(--green-100);
-  border-color: #b9dfd1;
-}
-
-.ask-stock-empty,
-.ask-stock-error {
-  color: #a51620;
-  background: var(--red-100);
-  border-color: #f0c7ca;
-}
-
-.ask-stock-clarification {
-  color: #714c00;
-  background: var(--amber-100);
-  border-color: #ead49b;
-  font-size: 14px;
-  line-height: 1.45;
-}
-
 .bottom-nav {
   position: fixed;
   z-index: 100;

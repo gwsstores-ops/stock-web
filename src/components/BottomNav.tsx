@@ -11,11 +11,6 @@ const items = [
     icon: "/search-icon.png"
   },
   {
-    href: "/ask-stock",
-    label: "Ask Stock",
-    icon: "/search-icon.png"
-  },
-  {
     href: "/qr-search",
     label: "QR Search",
     icon: "/qr-icon.png"
