@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import AppHeader from "@/components/AppHeader";
+import SearchResults, {
+  type SearchResultRow
+} from "@/components/SearchResults";
 
-type Row = {
-  id: number;
-  location: string;
-  area: string;
-  item: string;
-  size: string;
-  qty: number | null;
+type FilterOption = {
+  value: string;
+  label: string;
 };
 
 export default function Page() {
@@ -19,9 +19,9 @@ export default function Page() {
 
   const [categories, setCategories] = useState<string[]>([]);
   const [items, setItems] = useState<string[]>([]);
-  const [diameters, setDiameters] = useState<string[]>([]);
-  const [lengths, setLengths] = useState<string[]>([]);
-  const [rows, setRows] = useState<Row[]>([]);
+  const [diameters, setDiameters] = useState<FilterOption[]>([]);
+  const [lengths, setLengths] = useState<FilterOption[]>([]);
+  const [rows, setRows] = useState<SearchResultRow[]>([]);
 
   const [locationCounts, setLocationCounts] = useState({
     W3: 0,
@@ -32,16 +32,6 @@ export default function Page() {
   const diamRef = useRef<HTMLSelectElement>(null);
   const lengthRef = useRef<HTMLSelectElement>(null);
   const catRef = useRef<HTMLSelectElement>(null);
-
-  const allowedAreas = ["GWS", "W3", "W4"];
-
-  const selectStyle: React.CSSProperties = {
-    padding: "10px 12px",
-    fontSize: 16,
-    borderRadius: 6,
-    border: "1px solid #ccc",
-    background: "#fff"
-  };
 
   // LOAD COUNTS
   useEffect(() => {
@@ -66,12 +56,7 @@ export default function Page() {
   useEffect(() => {
     if (!cat) return;
 
-    setItem("");
-    setDiam("");
-    setLength("");
-    setRows([]);
-
-    fetch(`/api/items?cat=${cat}`)
+    fetch(`/api/items?cat=${encodeURIComponent(cat)}`)
       .then(res => res.json())
       .then(data => {
         const list = data.items || [];
@@ -88,94 +73,100 @@ export default function Page() {
   useEffect(() => {
     if (!item) return;
 
-    setDiam("");
-    setLength("");
-    setRows([]);
-
-    fetch(`/api/diameters?cat=${cat}&item=${item}`)
+    fetch(
+      `/api/diameters?cat=${encodeURIComponent(cat)}&item=${encodeURIComponent(item)}`
+    )
       .then(res => res.json())
       .then(data => {
-        const list = (data.diameters || []).map(
-          (d: any) => d.diam_display
-        );
-
-        const sorted = list.sort(
-          (a: string, b: string) => Number(a) - Number(b)
+        const sorted = (data.diameters || []).sort(
+          (a: FilterOption, b: FilterOption) =>
+            Number(a.value) - Number(b.value)
         );
 
         setDiameters(sorted);
 
         if (sorted.length === 1) {
-          setDiam(sorted[0]);
+          setDiam(sorted[0].value);
           setTimeout(() => diamRef.current?.focus(), 100);
         }
       });
-  }, [item]);
+  }, [cat, item]);
 
   // DIAM CHANGED
   useEffect(() => {
     if (!diam) return;
 
-    setLength("");
-    setRows([]);
-
-    fetch(`/api/lengths?cat=${cat}&item=${item}&diam=${diam}`)
+    fetch(
+      `/api/lengths?cat=${encodeURIComponent(cat)}&item=${encodeURIComponent(item)}&diam=${encodeURIComponent(diam)}`
+    )
       .then(res => res.json())
       .then(data => {
-        const list = (data.lengths || []).map(
-          (l: any) => l.length_display
-        );
+        const list: FilterOption[] = data.lengths || [];
 
         if (list.length === 0) {
-          fetch(`/api/search?cat=${cat}&item=${item}&diam=${diam}`)
+          fetch(
+            `/api/search?cat=${encodeURIComponent(cat)}&item=${encodeURIComponent(item)}&diam=${encodeURIComponent(diam)}`
+          )
             .then(res => res.json())
             .then(data => setRows(data.rows || []));
           return;
         }
 
         const sorted = list.sort(
-          (a: string, b: string) => Number(a) - Number(b)
+          (a, b) => Number(a.value) - Number(b.value)
         );
 
         setLengths(sorted);
 
         if (sorted.length === 1) {
-          setLength(sorted[0]);
+          setLength(sorted[0].value);
           setTimeout(() => lengthRef.current?.focus(), 100);
         }
       });
-  }, [diam]);
+  }, [cat, item, diam]);
 
   // LENGTH CHANGED
   useEffect(() => {
     if (!length) return;
 
     fetch(
-      `/api/search?cat=${cat}&item=${item}&diam=${diam}&length=${length}`
+      `/api/search?cat=${encodeURIComponent(cat)}&item=${encodeURIComponent(item)}&diam=${encodeURIComponent(diam)}&length=${encodeURIComponent(length)}`
     )
       .then(res => res.json())
       .then(data => setRows(data.rows || []));
-  }, [length]);
+  }, [cat, item, diam, length]);
 
-  const areaIcon = (area: string) => {
-    if (area === "GWS") return "/gws.png";
-    if (area === "W3") return "/w3.png";
-    if (area === "W4") return "/w4.png";
-    return "";
+  const handleCategoryChange = (value: string) => {
+    setCat(value);
+    setItem("");
+    setDiam("");
+    setLength("");
+    setItems([]);
+    setDiameters([]);
+    setLengths([]);
+    setRows([]);
   };
 
-  const filteredRows = rows.filter(row =>
-    allowedAreas.includes(row.area)
-  );
+  const handleItemChange = (value: string) => {
+    setItem(value);
+    setDiam("");
+    setLength("");
+    setDiameters([]);
+    setLengths([]);
+    setRows([]);
+  };
 
-  const grouped = filteredRows.reduce<Record<string, Row[]>>(
-    (acc, row) => {
-      if (!acc[row.area]) acc[row.area] = [];
-      acc[row.area].push(row);
-      return acc;
-    },
-    {}
-  );
+  const handleDiameterChange = (value: string) => {
+    setDiam(value);
+    setLength("");
+    setLengths([]);
+    setRows([]);
+  };
+
+  const handleLengthChange = (value: string) => {
+    setLength(value);
+    setRows([]);
+  };
 
   const resetAll = () => {
     setCat("");
@@ -189,115 +180,105 @@ export default function Page() {
     setTimeout(() => catRef.current?.focus(), 100);
   };
 
-  const getItemStyle = (item: string): React.CSSProperties => {
-    if (item.toUpperCase().includes("HDG")) {
-      return { color: "#777" };
-    }
-    return {};
-  };
-
   return (
-    <div style={{ padding: "18px 14px 24px", maxWidth: 700, margin: "0 auto" }}>
-
-      {/* HEADER WITH SMALLER COUNTS */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 18
-        }}
-      >
-        <div style={{ textAlign: "center", minWidth: 90 }}>
-          <div style={{ fontSize: 13, color: "#777" }}>W3 PALLETS</div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: "#444" }}>
-            {locationCounts.W3}
-          </div>
-        </div>
-
-        <img src="/logo.png" height={58} />
-
-        <div style={{ textAlign: "center", minWidth: 90 }}>
-          <div style={{ fontSize: 13, color: "#777" }}>W4 PALLETS</div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: "#444" }}>
-            {locationCounts.W4}
-          </div>
-        </div>
-      </div>
-
-      {/* DROPDOWNS */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <select ref={catRef} value={cat} onChange={e => setCat(e.target.value)} style={selectStyle}>
-          <option value="">CAT</option>
-          {categories.map(c => <option key={c}>{c}</option>)}
-        </select>
-
-        <select ref={itemRef} value={item} onChange={e => setItem(e.target.value)} style={selectStyle}>
-          <option value="">ITEM</option>
-          {items.map(i => <option key={i}>{i}</option>)}
-        </select>
-
-        <select ref={diamRef} value={diam} onChange={e => setDiam(e.target.value)} style={selectStyle}>
-          <option value="">DIAMETER</option>
-          {diameters.map(d => <option key={d}>{d}</option>)}
-        </select>
-
-        <select ref={lengthRef} value={length} onChange={e => setLength(e.target.value)} style={selectStyle}>
-          <option value="">LENGTH</option>
-          {lengths.map(l => <option key={l}>{l}</option>)}
-        </select>
-
-        <button
-          onClick={resetAll}
-          style={{
-            marginTop: 8,
-            padding: "10px 14px",
-            backgroundColor: "#eee",
-            border: "1px solid #ccc",
-            borderRadius: 6,
-            cursor: "pointer",
-            fontSize: 15
-          }}
-        >
-          Reset
-        </button>
-      </div>
-
-      {/* TITLE */}
-      {rows.length > 0 && (
-        <div style={{ marginTop: 24, marginBottom: 16 }}>
-          <div style={{ fontSize: 20 }}>
-            <span style={{ fontWeight: 700, ...getItemStyle(rows[0].item) }}>
-              {rows[0].item}
-            </span>
-            <span style={{ marginLeft: 18, color: "#555" }}>
-              {rows[0].size}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* RESULTS */}
-      <div>
-        {["GWS", "W3", "W4"]
-          .filter(area => grouped[area])
-          .map(area => (
-            <div key={area} style={{ marginBottom: 28 }}>
-              <div style={{ marginBottom: 8 }}>
-                <img src={areaIcon(area)} width={45} />
-              </div>
-
-              {grouped[area]
-                .sort((a, b) => a.location.localeCompare(b.location))
-                .map(row => (
-                  <div key={row.id} style={{ padding: "4px 0", fontSize: 15 }}>
-                    {row.location} → QTY:{" "}
-                    <strong>{(row.qty ?? 0).toLocaleString()}</strong>
-                  </div>
-                ))}
+    <main className="page-shell">
+      <AppHeader title="Stock Search">
+        <div className="header-stats">
+          <div className="stat-card">
+            <span className="stat-dot stat-dot-w3" />
+            <div>
+              <div className="stat-label">W3 pallets</div>
+              <div className="stat-value">{locationCounts.W3}</div>
             </div>
-          ))}
-      </div>
-    </div>
+          </div>
+
+          <div className="stat-card">
+            <span className="stat-dot stat-dot-w4" />
+            <div>
+              <div className="stat-label">W4 pallets</div>
+              <div className="stat-value">{locationCounts.W4}</div>
+            </div>
+          </div>
+        </div>
+      </AppHeader>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="section-kicker">Search filters</p>
+            <h2>Choose an item</h2>
+          </div>
+        </div>
+
+        <div className="form-stack form-grid">
+          <label className="field">
+            <span className="field-label">Category</span>
+            <select
+              ref={catRef}
+              value={cat}
+              onChange={e => handleCategoryChange(e.target.value)}
+              className="control"
+            >
+              <option value="">Select category</option>
+              {categories.map(c => <option key={c}>{c}</option>)}
+            </select>
+          </label>
+
+          <label className="field">
+            <span className="field-label">Item</span>
+            <select
+              ref={itemRef}
+              value={item}
+              onChange={e => handleItemChange(e.target.value)}
+              className="control"
+              disabled={!cat}
+            >
+              <option value="">Select item</option>
+              {items.map(i => <option key={i}>{i}</option>)}
+            </select>
+          </label>
+
+          <label className="field">
+            <span className="field-label">Diameter</span>
+            <select
+              ref={diamRef}
+              value={diam}
+              onChange={e => handleDiameterChange(e.target.value)}
+              className="control"
+              disabled={!item}
+            >
+              <option value="">Select diameter</option>
+              {diameters.map(d => (
+                <option key={d.value} value={d.value}>{d.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="field">
+            <span className="field-label">Length</span>
+            <select
+              ref={lengthRef}
+              value={length}
+              onChange={e => handleLengthChange(e.target.value)}
+              className="control"
+              disabled={!diam || lengths.length === 0}
+            >
+              <option value="">Select length</option>
+              {lengths.map(l => (
+                <option key={l.value} value={l.value}>{l.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="button-row">
+          <button onClick={resetAll} className="button button-secondary">
+            Reset search
+          </button>
+        </div>
+      </section>
+
+      <SearchResults rows={rows} />
+    </main>
   );
 }

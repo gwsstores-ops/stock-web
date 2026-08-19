@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { fetchAllPages } from "@/lib/supabasePaging";
 
 export async function GET() {
-  const { data, error } = await supabase
-    .from("stock")
-    .select("area, location");
+  const { data, error } = await fetchAllPages<{
+    area: string;
+    location: string;
+  }>((from, to) =>
+    supabase
+      .from("stock")
+      .select("area, location")
+      .in("area", ["W3", "W4"])
+      .not("location", "is", null)
+      .order("id", { ascending: true })
+      .range(from, to)
+  );
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

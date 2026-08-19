@@ -18,8 +18,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, fontFamily: "Arial, sans-serif" }}>
-        <div style={{ paddingBottom: 90 }}>{children}</div>
+      <body>
+        <div className="app-frame">{children}</div>
         <BottomNav />
       </body>
     </html>

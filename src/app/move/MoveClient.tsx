@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
+import AppHeader from "@/components/AppHeader";
+import { splitStockLocation } from "@/lib/stockLocation";
 
 type Row = {
   id: number;
@@ -13,33 +16,61 @@ type Row = {
 };
 
 export default function MoveClient() {
-  const [location, setLocation] = useState("");
+  const [palletId, setPalletId] = useState("");
+  const [selectedLocation, setSelectedLocation] = useState("");
   const [previewRows, setPreviewRows] = useState<Row[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
   const searchParams = useSearchParams();
+  const suggestionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suggestionRequestRef = useRef<AbortController | null>(null);
+
+  const cancelSuggestionSearch = () => {
+    if (suggestionTimerRef.current) {
+      clearTimeout(suggestionTimerRef.current);
+      suggestionTimerRef.current = null;
+    }
+
+    suggestionRequestRef.current?.abort();
+    suggestionRequestRef.current = null;
+  };
 
   /* ==============================
      PREVIEW
   ============================== */
 
-  const handlePreview = async (loc?: string) => {
-    const target = loc || location;
+  const handlePreview = useCallback(async (target: string) => {
     if (!target) return;
 
-    const res = await fetch(`/api/preview?location=${target}`);
-    const data = await res.json();
+    try {
+      const res = await fetch(
+        `/api/preview?palletId=${encodeURIComponent(target)}`
+      );
+      const data = await res.json();
 
-    setPreviewRows(data.rows || []);
-  };
+      if (!res.ok) {
+        throw new Error(data.error || "Pallet lookup failed");
+      }
+
+      const rows: Row[] = data.rows || [];
+      setPreviewRows(rows);
+      setSelectedLocation(rows[0]?.location || "");
+    } catch (error) {
+      setPreviewRows([]);
+      setSelectedLocation("");
+      const message =
+        error instanceof Error ? error.message : "Pallet lookup failed";
+      alert(message);
+    }
+  }, []);
 
   /* ==============================
      MOVE
   ============================== */
 
  const handleMove = async (targetArea: string) => {
-  if (!previewRows.length) return;
+  if (!previewRows.length || loading) return;
 
   const confirmMove = confirm(
     `Move ${previewRows.length} row(s) to ${targetArea}?`
@@ -48,23 +79,33 @@ export default function MoveClient() {
 
   setLoading(true);
 
-  await fetch("/api/move", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      location,
-      target: targetArea
-    })
-  });
+  try {
+    const res = await fetch("/api/move", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location: selectedLocation,
+        target: targetArea
+      })
+    });
+    const data = await res.json();
 
-  alert("Move complete");
+    if (!res.ok) {
+      throw new Error(data.error || "Move failed");
+    }
 
-  // ✅ AUTO RESET
-  setLocation("");
-  setPreviewRows([]);
-  setSuggestions([]);
+    alert(data.message || "Move complete");
 
-  setLoading(false);
+    setPalletId("");
+    setSelectedLocation("");
+    setPreviewRows([]);
+    setSuggestions([]);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Move failed";
+    alert(`Move failed: ${message}`);
+  } finally {
+    setLoading(false);
+  }
 };
 
 
@@ -72,23 +113,44 @@ export default function MoveClient() {
      AUTOCOMPLETE
   ============================== */
 
-  const handleLocationChange = async (value: string) => {
+  const handlePalletIdChange = (value: string) => {
     const upper = value.toUpperCase();
-    setLocation(upper);
+    setPalletId(upper);
+    setSelectedLocation("");
+    setPreviewRows([]);
+    cancelSuggestionSearch();
 
-    if (upper.length >= 2) {
-      const res = await fetch(`/api/preview?location=${upper}`);
-      const data = await res.json();
-
-      const uniqueLocations: string[] = Array.from(
-        new Set((data.rows || []).map((r: Row) => r.location))
-      );
-
-      setSuggestions(uniqueLocations);
-    } else {
+    if (upper.length < 2) {
       setSuggestions([]);
+      return;
     }
+
+    suggestionTimerRef.current = setTimeout(async () => {
+      const controller = new AbortController();
+      suggestionRequestRef.current = controller;
+
+      try {
+        const res = await fetch(
+          `/api/preview?palletId=${encodeURIComponent(upper)}&match=contains`,
+          { signal: controller.signal }
+        );
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "Pallet search failed");
+        }
+
+        setSuggestions(data.locations || []);
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") return;
+        setSuggestions([]);
+      }
+    }, 300);
   };
+
+  useEffect(() => {
+    return () => cancelSuggestionSearch();
+  }, []);
 
   /* ==============================
      QR AUTO-FILL
@@ -98,11 +160,13 @@ export default function MoveClient() {
     const scannedLocation = searchParams.get("location");
 
     if (scannedLocation) {
-      const upper = scannedLocation.toUpperCase();
-      setLocation(upper);
-      handlePreview(upper);
+      const scannedValue = scannedLocation.toUpperCase();
+      const parsed = splitStockLocation(scannedValue);
+      const scannedPalletId = parsed.palletId || scannedValue;
+      setPalletId(scannedPalletId);
+      handlePreview(scannedPalletId);
     }
-  }, [searchParams]);
+  }, [searchParams, handlePreview]);
 
   const iconMap: Record<string, string> = {
     GWS: "/gws.png",
@@ -111,159 +175,145 @@ export default function MoveClient() {
   };
 
   return (
-    <div
-      style={{
-        padding: "18px 14px 24px",
-        maxWidth: 700,
-        margin: "0 auto"
-      }}
-    >
-      <h2 style={{ marginBottom: 16 }}>↓ MOVE ↓</h2>
+    <main className="page-shell">
+      <AppHeader title="Move Stock" />
 
-      {/* INPUT + AUTOCOMPLETE */}
-      <div style={{ position: "relative", marginBottom: 24 }}>
-        <input
-          type="text"
-          placeholder="Enter Location (e.g. 3A98)"
-          value={location}
-          onChange={(e) => handleLocationChange(e.target.value)}
-          style={{
-            padding: "10px 12px",
-            width: "100%",
-            fontSize: 17,
-            borderRadius: 6,
-            border: "1px solid #ccc"
-          }}
-        />
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="section-kicker">Step 1</p>
+            <h2>Find a pallet</h2>
+          </div>
+        </div>
+
+        <div className="autocomplete">
+          <label className="field">
+            <span className="field-label">Pallet ID</span>
+            <input
+              type="text"
+              placeholder="For example: YONG176_33"
+              value={palletId}
+              onChange={(e) => handlePalletIdChange(e.target.value)}
+              className="control"
+              autoComplete="off"
+            />
+          </label>
 
         {suggestions.length > 0 && (
-          <div
-            style={{
-              position: "absolute",
-              top: 44,
-              left: 0,
-              right: 0,
-              background: "white",
-              border: "1px solid #ccc",
-              borderRadius: 6,
-              zIndex: 10
-            }}
-          >
-            {suggestions.map((s) => (
-              <div
-                key={s}
-                style={{
-                  padding: "10px 12px",
-                  cursor: "pointer"
-                }}
-                onClick={() => {
-                  setLocation(s);
-                  setSuggestions([]);
-                  handlePreview(s);
-                }}
-              >
-                {s}
-              </div>
-            ))}
+          <div className="suggestions" role="listbox">
+            {suggestions.map((suggestion) => {
+              const parsed = splitStockLocation(suggestion);
+              const suggestionPalletId = parsed.palletId || suggestion;
+
+              return (
+                <button
+                  type="button"
+                  key={suggestion}
+                  className="suggestion suggestion-pallet"
+                  onClick={() => {
+                    cancelSuggestionSearch();
+                    setPalletId(suggestionPalletId);
+                    setSelectedLocation(suggestion);
+                    setSuggestions([]);
+                    handlePreview(suggestionPalletId);
+                  }}
+                >
+                  <span>{suggestionPalletId}</span>
+                  <small>Location: {parsed.location}</small>
+                </button>
+              );
+            })}
           </div>
         )}
-      </div>
-
-     {/* PREVIEW RESULTS */}
-{previewRows.length > 0 && (
-  <div style={{ marginBottom: 28 }}>
-    {previewRows.map((row) => (
-      <div
-        key={row.id}
-        style={{
-          padding: "10px 0",
-          borderBottom: "1px solid #e5e5e5"
-        }}
-      >
-        {/* LOCATION */}
-        <div
-          style={{
-            fontSize: 18,
-            fontWeight: 700,
-            letterSpacing: 0.5
-          }}
-        >
-          {row.location}
-
         </div>
-{row.area && (
-  <div
-    style={{
-      fontSize: 14,
-      fontWeight: 600,
-      color: "#666",
-      marginTop: 2,
-      marginBottom: 6
-    }}
-  >
-    AREA: {row.area}
-  </div>
-)}
+      </section>
 
-        {/* ITEM + SIZE */}
-        <div
-          style={{
-            fontSize: 15,
-            marginTop: 3,
-            color: "#444"
-          }}
-        >
-          {row.item} — {row.size}
+      {previewRows.length > 0 && (
+        <section className="panel">
+          <div className="section-heading">
+            <div>
+              <p className="section-kicker">Pallet contents</p>
+              <h2>{previewRows.length} stock line{previewRows.length === 1 ? "" : "s"}</h2>
+            </div>
+          </div>
+
+          <div className="preview-list">
+            {previewRows.map((row) => {
+              const parsed = splitStockLocation(row.location);
+
+              return (
+                <div key={row.id} className="preview-card">
+                  <div className="preview-topline">
+                    <div className="preview-location-details">
+                      <div className="stock-result-field">
+                        <span className="stock-result-label">Location</span>
+                        <span className="preview-location">
+                          {parsed.location}
+                        </span>
+                      </div>
+                      <div className="stock-result-field">
+                        <span className="stock-result-label">Pallet ID</span>
+                        <span className="pallet-id">
+                          {parsed.palletId || "—"}
+                        </span>
+                      </div>
+                    </div>
+                    {row.area && (
+                      <span
+                        className={`area-badge area-badge-${row.area
+                          .toLowerCase()
+                          .replaceAll("_", "-")}`}
+                      >
+                        {row.area}
+                      </span>
+                    )}
+                  </div>
+                  <div className="preview-item">
+                    {row.item} — {row.size}
+                  </div>
+                  <div className="preview-qty">
+                    Quantity: {row.qty?.toLocaleString() ?? 0}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="section-kicker">Step 2</p>
+            <h2>Move to</h2>
+          </div>
         </div>
 
-        {/* QTY */}
-        <div
-          style={{
-            fontSize: 15,
-            marginTop: 4,
-            color: "#333"
-          }}
-        >
-          QTY: {row.qty?.toLocaleString()}
-        </div>
-      </div>
-    ))}
-  </div>
-)}
-      {/* MOVE TO SECTION */}
-      <div style={{ marginTop: 20, textAlign: "center" }}>
-        <h3 style={{ marginBottom: 12 }}>TO</h3>
-
-        <div
-          style={{
-            display: "flex",
-            gap: 24,
-            justifyContent: "center",
-            alignItems: "center"
-          }}
-        >
+        <div className="destination-grid">
           {["GWS", "W3", "W4"].map((area) => {
-            const disabled = previewRows.length === 0;
+            const disabled = previewRows.length === 0 || loading;
 
             return (
-              <img
+              <button
+                type="button"
                 key={area}
-                src={iconMap[area]}
-                alt={area}
-                style={{
-                  width: 80,
-                  cursor: disabled ? "not-allowed" : "pointer",
-                  opacity: disabled ? 0.3 : 1,
-                  transition: "0.2s"
-                }}
-                onClick={() => {
-                  if (!disabled) handleMove(area);
-                }}
-              />
+                className="destination-button"
+                disabled={disabled}
+                onClick={() => handleMove(area)}
+              >
+                <Image
+                  src={iconMap[area]}
+                  alt=""
+                  className="destination-icon"
+                  width={58}
+                  height={58}
+                />
+                <span>{loading ? "Moving…" : area}</span>
+              </button>
             );
           })}
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
