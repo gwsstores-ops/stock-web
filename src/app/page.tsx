@@ -6,6 +6,11 @@ import SearchResults, {
   type SearchResultRow
 } from "@/components/SearchResults";
 
+type FilterOption = {
+  value: string;
+  label: string;
+};
+
 export default function Page() {
   const [cat, setCat] = useState("");
   const [item, setItem] = useState("");
@@ -14,8 +19,8 @@ export default function Page() {
 
   const [categories, setCategories] = useState<string[]>([]);
   const [items, setItems] = useState<string[]>([]);
-  const [diameters, setDiameters] = useState<string[]>([]);
-  const [lengths, setLengths] = useState<string[]>([]);
+  const [diameters, setDiameters] = useState<FilterOption[]>([]);
+  const [lengths, setLengths] = useState<FilterOption[]>([]);
   const [rows, setRows] = useState<SearchResultRow[]>([]);
 
   const [locationCounts, setLocationCounts] = useState({
@@ -73,18 +78,15 @@ export default function Page() {
     )
       .then(res => res.json())
       .then(data => {
-        const list = (data.diameters || []).map(
-          (d: { diam_display: string }) => d.diam_display
-        );
-
-        const sorted = list.sort(
-          (a: string, b: string) => Number(a) - Number(b)
+        const sorted = (data.diameters || []).sort(
+          (a: FilterOption, b: FilterOption) =>
+            Number(a.value) - Number(b.value)
         );
 
         setDiameters(sorted);
 
         if (sorted.length === 1) {
-          setDiam(sorted[0]);
+          setDiam(sorted[0].value);
           setTimeout(() => diamRef.current?.focus(), 100);
         }
       });
@@ -99,9 +101,7 @@ export default function Page() {
     )
       .then(res => res.json())
       .then(data => {
-        const list = (data.lengths || []).map(
-          (l: { length_display: string }) => l.length_display
-        );
+        const list: FilterOption[] = data.lengths || [];
 
         if (list.length === 0) {
           fetch(
@@ -113,13 +113,13 @@ export default function Page() {
         }
 
         const sorted = list.sort(
-          (a: string, b: string) => Number(a) - Number(b)
+          (a, b) => Number(a.value) - Number(b.value)
         );
 
         setLengths(sorted);
 
         if (sorted.length === 1) {
-          setLength(sorted[0]);
+          setLength(sorted[0].value);
           setTimeout(() => lengthRef.current?.focus(), 100);
         }
       });
@@ -248,7 +248,9 @@ export default function Page() {
               disabled={!item}
             >
               <option value="">Select diameter</option>
-              {diameters.map(d => <option key={d}>{d}</option>)}
+              {diameters.map(d => (
+                <option key={d.value} value={d.value}>{d.label}</option>
+              ))}
             </select>
           </label>
 
@@ -262,7 +264,9 @@ export default function Page() {
               disabled={!diam || lengths.length === 0}
             >
               <option value="">Select length</option>
-              {lengths.map(l => <option key={l}>{l}</option>)}
+              {lengths.map(l => (
+                <option key={l.value} value={l.value}>{l.label}</option>
+              ))}
             </select>
           </label>
         </div>

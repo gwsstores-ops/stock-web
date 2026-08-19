@@ -1,5 +1,15 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { fetchAllPages } from "@/lib/supabasePaging";
+
+type SearchRow = {
+  id: number;
+  location: string;
+  area: string;
+  item: string;
+  size: string;
+  qty: number | null;
+};
 
 export async function GET(req: Request) {
   try {
@@ -10,21 +20,26 @@ export async function GET(req: Request) {
     const diam = searchParams.get("diam");
     const length = searchParams.get("length");
 
-    let query = supabase
-      .from("stock")
-      .select("id, location, area, item, size, qty")
-      .in("area", ["GWS", "W3", "W4"]);
+    const { data, error } = await fetchAllPages<SearchRow>((from, to) => {
+      let query = supabase
+        .from("stock")
+        .select("id, location, area, item, size, qty")
+        .in("area", ["GWS", "W3", "W4"]);
 
-    if (cat) query = query.eq("cat", cat);
-    if (item) query = query.eq("item", item);
-    if (diam) query = query.eq("diam_display", diam);
-    if (length) query = query.eq("length_display", length);
+      if (cat) query = query.eq("cat", cat);
+      if (item) query = query.eq("item", item);
+      if (diam) query = query.eq("diam_value", Number(diam));
+      if (length) query = query.eq("length_value", Number(length));
 
-    const { data, error } = await query.order("location", { ascending: true });
+      return query
+        .order("location", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to);
+    });
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
 
-    return NextResponse.json({ rows: data });
+    return NextResponse.json({ rows: data ?? [] });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Search failed";
 
