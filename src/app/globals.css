@@ -324,8 +324,8 @@ select.control {
 }
 
 .product-name {
-  font-size: 20px;
-  font-weight: 800;
+  font-size: 26px;
+  font-weight: 900;
   line-height: 1.2;
 }
 
@@ -335,8 +335,8 @@ select.control {
   color: var(--navy-900);
   background: var(--blue-100);
   border-radius: 999px;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: 16px;
+  font-weight: 900;
 }
 
 .qty-unknown-note {
@@ -383,15 +383,15 @@ select.control {
 }
 
 .area-title {
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 900;
 }
 
 .area-count {
   margin-left: auto;
   color: var(--ink-500);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 800;
 }
 
 
@@ -667,23 +667,25 @@ select.control {
   width: 100%;
   min-width: 620px;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .data-table th {
-  padding: 11px 12px;
-  color: var(--ink-500);
+  padding: 13px 12px;
+  color: var(--ink-700);
   text-align: left;
   background: #f4f6fa;
   border-bottom: 1px solid var(--line);
-  font-size: 10px;
+  font-size: 12px;
+  font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .data-table td {
-  padding: 12px;
+  padding: 14px 12px;
   border-bottom: 1px solid #edf0f5;
+  font-weight: 700;
 }
 
 .data-table tr:last-child td {
