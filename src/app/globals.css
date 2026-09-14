@@ -847,6 +847,30 @@ select.control,
   font-weight: 800;
 }
 
+.move-modal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.move-modal-icon {
+  object-fit: contain;
+}
+
+.move-modal-text {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.move-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
 .bottom-nav {
   position: fixed;
   z-index: 100;

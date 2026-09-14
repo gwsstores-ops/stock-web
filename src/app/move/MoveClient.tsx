@@ -20,6 +20,13 @@ export default function MoveClient() {
   const [previewRows, setPreviewRows] = useState<Row[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [resultModal, setResultModal] = useState<{
+    area: string;
+    message: string;
+  } | null>(null);
+  const [locationModalArea, setLocationModalArea] = useState<string | null>(null);
+  const [newLocationValue, setNewLocationValue] = useState("");
+  const [relocating, setRelocating] = useState(false);
 
   const searchParams = useSearchParams();
   const suggestionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -68,10 +75,13 @@ export default function MoveClient() {
  const handleMove = async (targetArea: string) => {
   if (!previewRows.length || loading) return;
 
-  const confirmMove = confirm(
-    `Move ${previewRows.length} row(s) to ${targetArea}?`
+  const uniquePalletIds = Array.from(
+    new Set(previewRows.map((row) => row.pallet_id ?? row.location ?? "Unknown"))
   );
-  if (!confirmMove) return;
+  const palletMessage =
+    uniquePalletIds.length === 1
+      ? `Pallet: ${uniquePalletIds[0]}`
+      : `Pallets: ${uniquePalletIds.join(", ")}`;
 
   setLoading(true);
 
@@ -91,19 +101,81 @@ export default function MoveClient() {
       throw new Error(data.error || "Move failed");
     }
 
-    alert(data.message || "Move complete");
+    setResultModal({ area: targetArea, message: palletMessage });
 
     setLocation("");
     setPreviewRows([]);
     setSuggestions([]);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Move failed";
-    alert(`Move failed: ${message}`);
+    setResultModal({ area: targetArea, message: `Move failed: ${message}` });
   } finally {
     setLoading(false);
   }
 };
 
+  const normalizeArea = (area: string) => {
+    const upper = area.toUpperCase();
+    if (upper.startsWith("GWS")) return "GWS";
+    if (upper.startsWith("W3")) return "W3";
+    if (upper.startsWith("W4")) return "W4";
+    return upper;
+  };
+
+  const isSameArea = (targetArea: string) =>
+    previewRows.length > 0 &&
+    previewRows.every((row) => row.area && normalizeArea(row.area) === targetArea);
+
+  const handleDestinationClick = (targetArea: string) => {
+    if (!previewRows.length || loading) return;
+
+    if (isSameArea(targetArea)) {
+      setNewLocationValue(previewRows[0]?.location ?? "");
+      setLocationModalArea(targetArea);
+      return;
+    }
+
+    handleMove(targetArea);
+  };
+
+  /* ==============================
+     RELOCATE (same-area location change)
+  ============================== */
+
+  const handleRelocate = async () => {
+    const trimmed = newLocationValue.trim().toUpperCase();
+    if (!trimmed || relocating) return;
+
+    setRelocating(true);
+
+    try {
+      const res = await fetch("/api/relocate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location, newLocation: trimmed })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Location update failed");
+      }
+
+      const area = locationModalArea ?? "GWS";
+      setLocationModalArea(null);
+      setResultModal({ area, message: `Location: ${trimmed}` });
+
+      setLocation("");
+      setPreviewRows([]);
+      setSuggestions([]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Location update failed";
+      const area = locationModalArea ?? "GWS";
+      setLocationModalArea(null);
+      setResultModal({ area, message: `Location update failed: ${message}` });
+    } finally {
+      setRelocating(false);
+    }
+  };
 
   /* ==============================
      AUTOCOMPLETE
@@ -165,6 +237,12 @@ export default function MoveClient() {
     GWS: "/gws.png",
     W3: "/w3.png",
     W4: "/w4.png"
+  };
+
+  const moveIconMap: Record<string, string> = {
+    GWS: "/icons/move_gws.png",
+    W3: "/icons/move_w3.png",
+    W4: "/icons/move_w4.png"
   };
 
   return (
@@ -276,7 +354,7 @@ export default function MoveClient() {
                 key={area}
                 className="destination-button"
                 disabled={disabled}
-                onClick={() => handleMove(area)}
+                onClick={() => handleDestinationClick(area)}
               >
                 <Image
                   src={iconMap[area]}
@@ -291,6 +369,57 @@ export default function MoveClient() {
           })}
         </div>
       </section>
+
+      {locationModalArea && (
+        <div className="modal-overlay" onClick={() => setLocationModalArea(null)}>
+          <div className="modal-panel move-modal" onClick={(e) => e.stopPropagation()}>
+            <p className="section-kicker">Same area</p>
+            <h2>Move location</h2>
+            <input
+              type="text"
+              className="control"
+              value={newLocationValue}
+              onChange={(e) => setNewLocationValue(e.target.value.toUpperCase())}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleRelocate();
+              }}
+              placeholder="New location"
+              autoComplete="off"
+              autoFocus
+            />
+            <button
+              type="button"
+              className="button button-primary button-block"
+              onClick={handleRelocate}
+              disabled={relocating || !newLocationValue.trim()}
+            >
+              {relocating ? "Updating…" : "Enter"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {resultModal && (
+        <div className="modal-overlay" onClick={() => setResultModal(null)}>
+          <div className="modal-panel move-modal" onClick={(e) => e.stopPropagation()}>
+            <Image
+              src={moveIconMap[resultModal.area]}
+              alt={resultModal.area}
+              width={96}
+              height={96}
+              className="move-modal-icon"
+            />
+            <p className="move-modal-text">{resultModal.message}</p>
+            <button
+              type="button"
+              className="button button-primary button-block"
+              onClick={() => setResultModal(null)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
