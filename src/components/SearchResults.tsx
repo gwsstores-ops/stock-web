@@ -95,11 +95,10 @@ export default function SearchResults({ rows }: SearchResultsProps) {
                           <Image
                             src="/icons/stack.png"
                             className="location-icon"
-                            alt=""
+                            alt="Location"
                             width={96}
                             height={96}
                           />
-                          Location
                         </span>
                       </th>
                       <th>Pallet ID</th>
