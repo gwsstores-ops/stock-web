@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, type CSSProperties } from "react";
 import AppHeader from "@/components/AppHeader";
 import SearchResults, {
   type SearchResultRow
@@ -9,6 +9,18 @@ import SearchResults, {
 type FilterOption = {
   value: string;
   label: string;
+};
+
+const getItemOptionStyle = (item: string): CSSProperties => {
+  const upper = item.toUpperCase();
+
+  if (upper.endsWith("SC")) {
+    return { backgroundColor: "#000", color: "#fff", fontWeight: 700 };
+  }
+  if (upper.includes("HDG")) {
+    return { backgroundColor: "#777", color: "#fff", fontWeight: 700 };
+  }
+  return { fontWeight: 700 };
 };
 
 export default function Page() {
@@ -232,9 +244,14 @@ export default function Page() {
               onChange={e => handleItemChange(e.target.value)}
               className="control"
               disabled={!cat}
+              style={item ? getItemOptionStyle(item) : undefined}
             >
               <option value="">Select item</option>
-              {items.map(i => <option key={i}>{i}</option>)}
+              {items.map(i => (
+                <option key={i} style={getItemOptionStyle(i)}>
+                  {i}
+                </option>
+              ))}
             </select>
           </label>
 

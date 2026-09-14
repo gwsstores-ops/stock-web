@@ -3,7 +3,8 @@ import type { CSSProperties } from "react";
 
 export type SearchResultRow = {
   id: number;
-  location: string;
+  location: string | null;
+  pallet_id: string | null;
   area: string;
   item: string;
   size: string;
@@ -85,18 +86,31 @@ export default function SearchResults({ rows }: SearchResultsProps) {
                 </div>
               </div>
 
-              <div className="location-list">
-                {grouped[area]
-                  .sort((a, b) => a.location.localeCompare(b.location))
-                  .map((row) => (
-                    <div key={row.id} className="location-row">
-                      <span className="location-code">{row.location}</span>
-                      <span className="qty-pill">
-                        QTY&nbsp;
-                        <strong>{(row.qty ?? 0).toLocaleString()}</strong>
-                      </span>
-                    </div>
-                  ))}
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Location</th>
+                      <th>Pallet ID</th>
+                      <th>Qty</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {grouped[area]
+                      .sort((a, b) =>
+                        (a.location ?? a.pallet_id ?? "").localeCompare(
+                          b.location ?? b.pallet_id ?? ""
+                        )
+                      )
+                      .map((row) => (
+                        <tr key={row.id}>
+                          <td>{row.location ?? "—"}</td>
+                          <td>{row.pallet_id ?? "—"}</td>
+                          <td>{(row.qty ?? 0).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
               </div>
             </section>
           ))}

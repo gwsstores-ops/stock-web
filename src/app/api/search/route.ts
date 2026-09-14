@@ -4,7 +4,8 @@ import { fetchAllPages } from "@/lib/supabasePaging";
 
 type SearchRow = {
   id: number;
-  location: string;
+  location: string | null;
+  pallet_id: string | null;
   area: string;
   item: string;
   size: string;
@@ -23,7 +24,7 @@ export async function GET(req: Request) {
     const { data, error } = await fetchAllPages<SearchRow>((from, to) => {
       let query = supabase
         .from("stock")
-        .select("id, location, area, item, size, qty")
+        .select("id, location, pallet_id, area, item, size, qty")
         .in("area", ["GWS", "W3", "W4"]);
 
       if (cat) query = query.eq("cat", cat);
@@ -32,7 +33,8 @@ export async function GET(req: Request) {
       if (length) query = query.eq("length_value", Number(length));
 
       return query
-        .order("location", { ascending: true })
+        .order("location", { ascending: true, nullsFirst: false })
+        .order("pallet_id", { ascending: true })
         .order("id", { ascending: true })
         .range(from, to);
     });

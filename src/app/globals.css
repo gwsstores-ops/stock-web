@@ -394,44 +394,6 @@ select.control {
   font-weight: 700;
 }
 
-.location-list {
-  padding: 4px 16px;
-}
-
-.location-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  min-height: 54px;
-  padding: 10px 0;
-  border-bottom: 1px solid #edf0f5;
-}
-
-.location-row:last-child {
-  border-bottom: 0;
-}
-
-.location-code {
-  overflow-wrap: anywhere;
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-}
-
-.qty-pill {
-  flex: 0 0 auto;
-  padding: 7px 10px;
-  color: var(--navy-900);
-  background: #eef1f7;
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.qty-pill strong {
-  font-size: 15px;
-}
 
 .autocomplete {
   position: relative;
@@ -498,6 +460,12 @@ select.control {
   overflow-wrap: anywhere;
   font-size: 16px;
   font-weight: 900;
+}
+
+.preview-sublocation {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
 }
 
 .area-badge {

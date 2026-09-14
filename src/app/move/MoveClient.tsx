@@ -7,7 +7,8 @@ import AppHeader from "@/components/AppHeader";
 
 type Row = {
   id: number;
-  location: string;
+  location: string | null;
+  pallet_id: string | null;
   area?: string
   item: string;
   size: string;
@@ -43,7 +44,7 @@ export default function MoveClient() {
 
     try {
       const res = await fetch(
-        `/api/preview?location=${encodeURIComponent(target)}`
+        `/api/preview?location=${encodeURIComponent(target)}&field=pallet_id`
       );
       const data = await res.json();
 
@@ -80,7 +81,8 @@ export default function MoveClient() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         location,
-        target: targetArea
+        target: targetArea,
+        field: "pallet_id"
       })
     });
     const data = await res.json();
@@ -124,7 +126,7 @@ export default function MoveClient() {
 
       try {
         const res = await fetch(
-          `/api/preview?location=${encodeURIComponent(upper)}&match=contains`,
+          `/api/preview?location=${encodeURIComponent(upper)}&match=contains&field=pallet_id`,
           { signal: controller.signal }
         );
         const data = await res.json();
@@ -173,13 +175,13 @@ export default function MoveClient() {
         <div className="section-heading">
           <div>
             <p className="section-kicker">Step 1</p>
-            <h2>Find a location</h2>
+            <h2>Find a pallet</h2>
           </div>
         </div>
 
         <div className="autocomplete">
           <label className="field">
-            <span className="field-label">Location</span>
+            <span className="field-label">Pallet ID</span>
             <input
               type="text"
               placeholder="For example: 3A98 or BRK5230-17"
@@ -225,7 +227,15 @@ export default function MoveClient() {
             {previewRows.map((row) => (
               <div key={row.id} className="preview-card">
                 <div className="preview-topline">
-                  <div className="preview-location">{row.location}</div>
+                  <div className="preview-location">
+                    {row.pallet_id ?? row.location}
+                    {row.location && row.pallet_id && row.location !== row.pallet_id && (
+                      <span className="preview-sublocation">
+                        {" "}
+                        · {row.location}
+                      </span>
+                    )}
+                  </div>
                   {row.area && (
                     <span
                       className={`area-badge area-badge-${row.area

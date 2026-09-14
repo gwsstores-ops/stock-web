@@ -6,6 +6,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const locationQuery = searchParams.get("location");
     const matchMode = searchParams.get("match");
+    const field = searchParams.get("field") === "pallet_id" ? "pallet_id" : "location";
 
     if (!locationQuery) {
       return NextResponse.json(
@@ -20,15 +21,17 @@ export async function GET(req: Request) {
     if (matchMode === "contains") {
       const { data, error } = await supabase
         .from("stock")
-        .select("location")
-        .ilike("location", locationPattern)
-        .order("location", { ascending: true })
+        .select(field)
+        .ilike(field, locationPattern)
+        .order(field, { ascending: true })
         .limit(100);
 
       if (error) throw error;
 
       const locations = [
-        ...new Set(data.map((row) => row.location).filter(Boolean))
+        ...new Set(
+          data.map((row) => (row as Record<string, string>)[field]).filter(Boolean)
+        )
       ].slice(0, 20);
 
       return NextResponse.json({ locations });
@@ -36,9 +39,10 @@ export async function GET(req: Request) {
 
     const { data, error } = await supabase
       .from("stock")
-      .select("id, location, area, item, size, qty, stock_check")
-      .ilike("location", locationPattern)
-      .order("location", { ascending: true });
+      .select("id, location, pallet_id, area, item, size, qty, stock_check")
+      .ilike(field, locationPattern)
+      .order("location", { ascending: true, nullsFirst: false })
+      .order("pallet_id", { ascending: true });
 
     if (error) throw error;
 
