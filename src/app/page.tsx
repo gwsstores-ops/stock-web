@@ -273,7 +273,7 @@ export default function Page() {
 
         <div className="button-row">
           <button onClick={resetAll} className="button button-secondary">
-            Reset search
+            Reset
           </button>
         </div>
       </section>
