@@ -90,7 +90,18 @@ export default function SearchResults({ rows }: SearchResultsProps) {
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>Location</th>
+                      <th>
+                        <span className="location-header">
+                          <Image
+                            src="/icons/stack.png"
+                            className="location-icon"
+                            alt=""
+                            width={96}
+                            height={96}
+                          />
+                          Location
+                        </span>
+                      </th>
                       <th>Pallet ID</th>
                       <th>Qty</th>
                     </tr>
@@ -104,18 +115,7 @@ export default function SearchResults({ rows }: SearchResultsProps) {
                       )
                       .map((row) => (
                         <tr key={row.id}>
-                          <td>
-                            <span className="location-cell">
-                              <Image
-                                src="/icons/stack.png"
-                                className="location-icon"
-                                alt=""
-                                width={18}
-                                height={18}
-                              />
-                              {row.location ?? "—"}
-                            </span>
-                          </td>
+                          <td>{row.location ?? "—"}</td>
                           <td>{row.pallet_id ?? "—"}</td>
                           <td>{(row.qty ?? 0).toLocaleString()}</td>
                         </tr>
