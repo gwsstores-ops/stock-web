@@ -259,7 +259,8 @@ a {
   box-shadow: 0 0 0 4px rgba(47, 62, 145, 0.12);
 }
 
-select.control {
+select.control,
+.select-trigger {
   appearance: none;
   padding-right: 44px;
   background-image:
@@ -270,6 +271,12 @@ select.control {
     calc(100% - 15px) 22px;
   background-size: 5px 5px, 5px 5px;
   background-repeat: no-repeat;
+}
+
+.select-trigger {
+  display: block;
+  width: 100%;
+  text-align: left;
 }
 
 .button-row {

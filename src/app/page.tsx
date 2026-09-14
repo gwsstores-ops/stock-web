@@ -40,10 +40,27 @@ export default function Page() {
     W4: 0
   });
 
-  const itemRef = useRef<HTMLSelectElement>(null);
+  const [itemMenuOpen, setItemMenuOpen] = useState(false);
+
+  const itemRef = useRef<HTMLButtonElement>(null);
   const diamRef = useRef<HTMLSelectElement>(null);
   const lengthRef = useRef<HTMLSelectElement>(null);
   const catRef = useRef<HTMLSelectElement>(null);
+  const itemFieldRef = useRef<HTMLDivElement>(null);
+
+  // CLOSE ITEM DROPDOWN ON OUTSIDE CLICK
+  useEffect(() => {
+    if (!itemMenuOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!itemFieldRef.current?.contains(e.target as Node)) {
+        setItemMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [itemMenuOpen]);
 
   // LOAD COUNTS
   useEffect(() => {
@@ -151,6 +168,7 @@ export default function Page() {
   const handleCategoryChange = (value: string) => {
     setCat(value);
     setItem("");
+    setItemMenuOpen(false);
     setDiam("");
     setLength("");
     setItems([]);
@@ -161,6 +179,7 @@ export default function Page() {
 
   const handleItemChange = (value: string) => {
     setItem(value);
+    setItemMenuOpen(false);
     setDiam("");
     setLength("");
     setDiameters([]);
@@ -183,6 +202,7 @@ export default function Page() {
   const resetAll = () => {
     setCat("");
     setItem("");
+    setItemMenuOpen(false);
     setDiam("");
     setLength("");
     setItems([]);
@@ -238,21 +258,36 @@ export default function Page() {
 
           <label className="field">
             <span className="field-label">Item</span>
-            <select
-              ref={itemRef}
-              value={item}
-              onChange={e => handleItemChange(e.target.value)}
-              className="control"
-              disabled={!cat}
-              style={item ? getItemOptionStyle(item) : undefined}
-            >
-              <option value="">Select item</option>
-              {items.map(i => (
-                <option key={i} style={getItemOptionStyle(i)}>
-                  {i}
-                </option>
-              ))}
-            </select>
+            <div className="autocomplete" ref={itemFieldRef}>
+              <button
+                type="button"
+                ref={itemRef}
+                onClick={() => setItemMenuOpen(open => !open)}
+                className="control select-trigger"
+                disabled={!cat}
+                style={item ? getItemOptionStyle(item) : undefined}
+              >
+                {item || "Select item"}
+              </button>
+
+              {itemMenuOpen && items.length > 0 && (
+                <div className="suggestions" role="listbox">
+                  {items.map(i => (
+                    <button
+                      type="button"
+                      key={i}
+                      role="option"
+                      aria-selected={i === item}
+                      className="suggestion"
+                      style={getItemOptionStyle(i)}
+                      onClick={() => handleItemChange(i)}
+                    >
+                      {i}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </label>
 
           <label className="field">
