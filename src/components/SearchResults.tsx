@@ -18,7 +18,7 @@ type SearchResultsProps = {
 const areas = ["GWS", "W3", "W4"];
 
 const areaIcon = (area: string) => {
-  if (area === "GWS") return "/gws.png";
+  if (area === "GWS") return "/icons/BAY.png";
   if (area === "W3") return "/w3.png";
   if (area === "W4") return "/w4.png";
   return "";
