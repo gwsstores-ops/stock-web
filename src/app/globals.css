@@ -688,6 +688,17 @@ select.control {
   font-weight: 700;
 }
 
+.location-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.location-icon {
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
 .data-table tr:last-child td {
   border-bottom: 0;
 }

@@ -104,7 +104,18 @@ export default function SearchResults({ rows }: SearchResultsProps) {
                       )
                       .map((row) => (
                         <tr key={row.id}>
-                          <td>{row.location ?? "—"}</td>
+                          <td>
+                            <span className="location-cell">
+                              <Image
+                                src="/icons/stack.png"
+                                className="location-icon"
+                                alt=""
+                                width={18}
+                                height={18}
+                              />
+                              {row.location ?? "—"}
+                            </span>
+                          </td>
                           <td>{row.pallet_id ?? "—"}</td>
                           <td>{(row.qty ?? 0).toLocaleString()}</td>
                         </tr>
