@@ -18,11 +18,14 @@ type SearchResultsProps = {
 const areas = ["GWS", "W3", "W4"];
 
 const areaIcon = (area: string) => {
-  if (area === "GWS") return "/icons/BAY.png";
+  if (area === "GWS") return "/gws.png";
   if (area === "W3") return "/w3.png";
   if (area === "W4") return "/w4.png";
   return "";
 };
+
+const locationIcon = (area: string) =>
+  area === "GWS" ? "/icons/BAY.png" : "/icons/stack.png";
 
 const getItemStyle = (item: string): CSSProperties => {
   if (item.toUpperCase().includes("HDG")) {
@@ -93,7 +96,7 @@ export default function SearchResults({ rows }: SearchResultsProps) {
                       <th>
                         <span className="location-header">
                           <Image
-                            src="/icons/stack.png"
+                            src={locationIcon(area)}
                             className="location-icon"
                             alt="Location"
                             width={96}
