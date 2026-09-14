@@ -585,6 +585,50 @@ select.control {
   line-height: 1.5;
 }
 
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 14px;
+}
+
+.tool-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 14px;
+  color: inherit;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.tool-tile:hover {
+  transform: translateY(-2px);
+}
+
+.tool-tile-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  background: var(--blue-100);
+  border-radius: 18px;
+}
+
+.tool-tile-icon img {
+  width: 32px;
+  height: 32px;
+}
+
+.tool-tile-label {
+  font-size: 13px;
+  font-weight: 800;
+}
+
 #qr-reader,
 #qr-search-reader {
   overflow: hidden;
@@ -634,6 +678,42 @@ select.control {
   color: var(--ink-700);
   font-size: 13px;
   line-height: 1.45;
+}
+
+.pallet-id {
+  font-weight: 900;
+  color: var(--ink-900);
+}
+
+.size-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+.size-badge-red {
+  color: #a51620;
+  background: var(--red-100);
+}
+
+.size-badge-blue {
+  color: var(--blue-700);
+  background: var(--blue-100);
+}
+
+.size-badge-yellow {
+  color: var(--amber-600);
+  background: var(--amber-100);
+}
+
+.size-badge-green {
+  color: var(--green-600);
+  background: var(--green-100);
+}
+
+.size-badge-black {
+  color: var(--ink-900);
+  background: #e7e9ee;
 }
 
 .check-box {
@@ -752,10 +832,6 @@ select.control {
   font-size: 10px;
   font-weight: 800;
   transition: color 150ms ease, background 150ms ease;
-}
-
-.nav-item:nth-child(3) {
-  grid-column: 4;
 }
 
 .nav-item-active {

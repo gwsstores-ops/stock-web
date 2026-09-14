@@ -5,24 +5,29 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const locationQuery = searchParams.get("location");
+    const area = searchParams.get("area");
     const matchMode = searchParams.get("match");
     const field = searchParams.get("field") === "pallet_id" ? "pallet_id" : "location";
 
-    if (!locationQuery) {
+    if (!locationQuery && !area) {
       return NextResponse.json(
-        { error: "Missing location" },
+        { error: "Missing location or area" },
         { status: 400 }
       );
     }
 
-    const locationPattern =
-      matchMode === "contains" ? `%${locationQuery}%` : `${locationQuery}%`;
+    const locationPattern = locationQuery
+      ? matchMode === "contains"
+        ? `%${locationQuery}%`
+        : `${locationQuery}%`
+      : null;
 
     if (matchMode === "contains") {
-      const { data, error } = await supabase
-        .from("stock")
-        .select(field)
-        .ilike(field, locationPattern)
+      let query = supabase.from("stock").select(field);
+      if (locationPattern) query = query.ilike(field, locationPattern);
+      if (area) query = query.eq("area", area);
+
+      const { data, error } = await query
         .order(field, { ascending: true })
         .limit(100);
 
@@ -37,10 +42,14 @@ export async function GET(req: Request) {
       return NextResponse.json({ locations });
     }
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("stock")
-      .select("id, location, pallet_id, area, item, size, qty, stock_check")
-      .ilike(field, locationPattern)
+      .select("id, location, pallet_id, area, item, size, qty, stock_check");
+
+    if (locationPattern) query = query.ilike(field, locationPattern);
+    if (area) query = query.eq("area", area);
+
+    const { data, error } = await query
       .order("location", { ascending: true, nullsFirst: false })
       .order("pallet_id", { ascending: true });
 

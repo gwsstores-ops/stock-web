@@ -6,6 +6,7 @@ import AppHeader from "@/components/AppHeader";
 type Row = {
   id: number;
   location: string;
+  pallet_id?: string | null;
   area?: string;
   item: string;
   size: string;
@@ -15,6 +16,7 @@ type Row = {
 
 export default function Page() {
   const [location, setLocation] = useState("");
+  const [lookupArea, setLookupArea] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
 
@@ -26,13 +28,28 @@ export default function Page() {
      SEARCH
   ============================== */
 
-  const handleSearch = async (loc?: string) => {
-    const target = loc || location;
-    if (!target) return;
+  const handleSearch = async (loc?: string, area?: string) => {
+    const target = loc ?? location;
+    const areaValue = area ?? lookupArea;
+    if (!target && !areaValue) return;
 
-    const res = await fetch(`/api/preview?location=${target}`);
+    const params = new URLSearchParams();
+    if (target) params.set("location", target);
+    if (areaValue) params.set("area", areaValue);
+
+    const res = await fetch(`/api/preview?${params.toString()}`);
     const data = await res.json();
     setRows(data.rows || []);
+  };
+
+  /* ==============================
+     AREA (sticky filter)
+  ============================== */
+
+  const handleAreaChange = (value: string) => {
+    setLookupArea(value);
+    setSuggestions([]);
+    handleSearch(location, value);
   };
 
   /* ==============================
@@ -44,7 +61,10 @@ export default function Page() {
     setLocation(upper);
 
     if (upper.length >= 2) {
-      const res = await fetch(`/api/preview?location=${upper}`);
+      const params = new URLSearchParams({ location: upper });
+      if (lookupArea) params.set("area", lookupArea);
+
+      const res = await fetch(`/api/preview?${params.toString()}`);
       const data = await res.json();
 
       const uniqueLocations: string[] = Array.from(
@@ -71,28 +91,6 @@ export default function Page() {
     handleSearch();
     loadOutstanding();
   };
-
-  /* ==============================
-     CHECK ALL
-  ============================== */
-
-  const markAllChecked = async () => {
-    if (!rows.length) return;
-
-    const confirmAll = confirm(`Mark all ${rows.length} lines as checked?`);
-    if (!confirmAll) return;
-
-    await fetch("/api/mark-all-checked", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ location })
-    });
-
-    handleSearch();
-    loadOutstanding();
-  };
-
-  const allChecked = rows.length > 0 && rows.every((row) => row.stock_check === true);
 
   /* ==============================
      RESET ALL STOCK CHECKS
@@ -170,6 +168,20 @@ export default function Page() {
     return {};
   };
 
+  const getSizeBadgeClass = (size: string): string => {
+    const upper = size.toUpperCase();
+
+    if (upper.startsWith("12 X") || upper.startsWith("M12")) return "size-badge size-badge-red";
+    if (upper.startsWith("16 X") || upper.startsWith("M16")) return "size-badge size-badge-blue";
+    if (upper.startsWith("20 X") || upper.startsWith("M20")) return "size-badge size-badge-yellow";
+    if (upper.startsWith("24 X") || upper.startsWith("M24")) return "size-badge size-badge-green";
+    if (upper.startsWith("30 X") || upper.startsWith("M30")) return "size-badge size-badge-black";
+
+    return "";
+  };
+
+  const palletCount = new Set(rows.map((row) => row.pallet_id ?? `id-${row.id}`)).size;
+
   return (
     <main className="page-shell page-shell-wide">
       <AppHeader title="Stock Check" />
@@ -180,6 +192,22 @@ export default function Page() {
             <p className="section-kicker">Location lookup</p>
             <h2>Find stock to check</h2>
           </div>
+        </div>
+
+        <div className="filter-grid">
+          <label className="field">
+            <span className="field-label">Area</span>
+            <select
+              value={lookupArea}
+              onChange={(e) => handleAreaChange(e.target.value)}
+              className="control"
+            >
+              <option value="">All areas</option>
+              <option value="GWS">GWS</option>
+              <option value="W3">W3</option>
+              <option value="W4">W4</option>
+            </select>
+          </label>
         </div>
 
         <div className="autocomplete">
@@ -221,58 +249,45 @@ export default function Page() {
             <div>
               <p className="section-kicker">Location results</p>
               <h2>
-                {rows.length} line{rows.length === 1 ? "" : "s"} found
+                {palletCount} pallet{palletCount === 1 ? "" : "s"}
               </h2>
             </div>
-
-            {rows.length > 1 && (
-              <button
-                type="button"
-                onClick={markAllChecked}
-                disabled={allChecked}
-                className="button button-secondary"
-              >
-                {allChecked ? "All checked" : "Check all"}
-              </button>
-            )}
           </div>
 
-          <div>
-            {rows.map((row) => (
-              <div key={row.id} className="check-row">
-                <div>
-                  <div className="check-location">
-                    {row.location}
-                    {row.area && (
-                      <span
-                        className={`area-badge area-badge-${row.area
-                          .toLowerCase()
-                          .replaceAll("_", "-")}`}
-                        style={{ marginLeft: 8 }}
-                      >
-                        {row.area}
-                      </span>
-                    )}
-                  </div>
-                  <div className="check-detail">
-                    <span style={getItemStyle(row.item)}>{row.item}</span>
-                    {" · "}
-                    {row.size}
-                    {" · "}
-                    QTY {row.qty?.toLocaleString() ?? 0}
-                  </div>
-                </div>
-
-                <input
-                  type="checkbox"
-                  aria-label={`Mark ${row.location} checked`}
-                  checked={row.stock_check === true}
-                  disabled={row.stock_check === true}
-                  onChange={() => markChecked(row.id)}
-                  className="check-box"
-                />
-              </div>
-            ))}
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Pallet ID</th>
+                  <th>Item</th>
+                  <th>Size</th>
+                  <th>Qty</th>
+                  <th>Checked</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.id}>
+                    <td className="pallet-id">{row.pallet_id ?? "—"}</td>
+                    <td style={getItemStyle(row.item)}>{row.item}</td>
+                    <td>
+                      <span className={getSizeBadgeClass(row.size)}>{row.size}</span>
+                    </td>
+                    <td>{row.qty?.toLocaleString() ?? 0}</td>
+                    <td>
+                      <input
+                        type="checkbox"
+                        aria-label={`Mark pallet ${row.pallet_id ?? row.id} checked`}
+                        checked={row.stock_check === true}
+                        disabled={row.stock_check === true}
+                        onChange={() => markChecked(row.id)}
+                        className="check-box"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
       )}
