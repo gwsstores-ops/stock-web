@@ -16,11 +16,6 @@ const items = [
     icon: "/qr-icon.png"
   },
   {
-    href: "/containers",
-    label: "Containers",
-    icon: "/container.png"
-  },
-  {
     href: "/move",
     label: "Move",
     icon: "/move-icon.png"
