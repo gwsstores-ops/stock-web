@@ -256,12 +256,13 @@ export default function Page() {
             </select>
           </label>
 
-          <label className="field">
-            <span className="field-label">Item</span>
+          <div className="field">
+            <span className="field-label" id="item-field-label">Item</span>
             <div className="autocomplete" ref={itemFieldRef}>
               <button
                 type="button"
                 ref={itemRef}
+                aria-labelledby="item-field-label"
                 onClick={() => setItemMenuOpen(open => !open)}
                 className="control select-trigger"
                 disabled={!cat}
@@ -288,7 +289,7 @@ export default function Page() {
                 </div>
               )}
             </div>
-          </label>
+          </div>
 
           <label className="field">
             <span className="field-label">Diameter</span>
