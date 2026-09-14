@@ -46,7 +46,11 @@ export async function GET(req: Request) {
       .from("stock")
       .select("id, location, pallet_id, area, item, size, qty, stock_check");
 
-    if (locationPattern) query = query.ilike(field, locationPattern);
+    if (locationQuery && matchMode === "exact") {
+      query = query.eq(field, locationQuery);
+    } else if (locationPattern) {
+      query = query.ilike(field, locationPattern);
+    }
     if (area) query = query.eq("area", area);
 
     const { data, error } = await query

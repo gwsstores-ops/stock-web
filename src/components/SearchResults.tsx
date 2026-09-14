@@ -1,5 +1,7 @@
+"use client";
+
 import Image from "next/image";
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 
 export type SearchResultRow = {
   id: number;
@@ -34,7 +36,35 @@ const getItemStyle = (item: string): CSSProperties => {
   return {};
 };
 
+const isMixPallet = (palletId: string | null) =>
+  !!palletId && palletId.toUpperCase().includes("(MIX-");
+
 export default function SearchResults({ rows }: SearchResultsProps) {
+  const [mixModalPalletId, setMixModalPalletId] = useState<string | null>(null);
+  const [mixModalRows, setMixModalRows] = useState<SearchResultRow[]>([]);
+  const [mixModalLoading, setMixModalLoading] = useState(false);
+
+  const openMixModal = async (palletId: string) => {
+    setMixModalPalletId(palletId);
+    setMixModalLoading(true);
+    setMixModalRows([]);
+
+    try {
+      const res = await fetch(
+        `/api/preview?field=pallet_id&match=exact&location=${encodeURIComponent(palletId)}`
+      );
+      const data = await res.json();
+      setMixModalRows(data.rows || []);
+    } finally {
+      setMixModalLoading(false);
+    }
+  };
+
+  const closeMixModal = () => {
+    setMixModalPalletId(null);
+    setMixModalRows([]);
+  };
+
   const filteredRows = rows.filter((row) => areas.includes(row.area));
 
   if (filteredRows.length === 0) return null;
@@ -118,7 +148,19 @@ export default function SearchResults({ rows }: SearchResultsProps) {
                       .map((row) => (
                         <tr key={row.id}>
                           <td>{row.location ?? "—"}</td>
-                          <td>{row.pallet_id ?? "—"}</td>
+                          <td>
+                            {isMixPallet(row.pallet_id) ? (
+                              <button
+                                type="button"
+                                className="pallet-id-link"
+                                onClick={() => openMixModal(row.pallet_id!)}
+                              >
+                                {row.pallet_id}
+                              </button>
+                            ) : (
+                              row.pallet_id ?? "—"
+                            )}
+                          </td>
                           <td>{(row.qty ?? 0).toLocaleString()}</td>
                         </tr>
                       ))}
@@ -128,6 +170,53 @@ export default function SearchResults({ rows }: SearchResultsProps) {
             </section>
           ))}
       </div>
+
+      {mixModalPalletId && (
+        <div className="modal-overlay" onClick={closeMixModal}>
+          <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <p className="section-kicker">Mixed pallet</p>
+                <h2>{mixModalPalletId}</h2>
+              </div>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={closeMixModal}
+              >
+                Close
+              </button>
+            </div>
+
+            {mixModalLoading ? (
+              <div className="empty-state">Loading…</div>
+            ) : mixModalRows.length === 0 ? (
+              <div className="empty-state">No items found for this pallet.</div>
+            ) : (
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Item</th>
+                      <th>Size</th>
+                      <th>Qty</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mixModalRows.map((row) => (
+                      <tr key={row.id}>
+                        <td style={getItemStyle(row.item)}>{row.item}</td>
+                        <td>{row.size}</td>
+                        <td>{(row.qty ?? 0).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }

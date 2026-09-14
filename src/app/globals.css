@@ -800,6 +800,53 @@ select.control,
   font-size: 13px;
 }
 
+.pallet-id-link {
+  padding: 0;
+  color: var(--blue-700);
+  background: none;
+  border: 0;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.modal-overlay {
+  position: fixed;
+  z-index: 200;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(17, 25, 54, 0.55);
+}
+
+.modal-panel {
+  width: min(100%, 480px);
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 20px;
+  background: var(--surface);
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(17, 25, 54, 0.35);
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.modal-close {
+  padding: 8px 14px;
+  color: var(--navy-900);
+  background: var(--blue-100);
+  border: 0;
+  border-radius: 10px;
+  font-weight: 800;
+}
+
 .bottom-nav {
   position: fixed;
   z-index: 100;
