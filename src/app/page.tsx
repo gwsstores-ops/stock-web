@@ -182,7 +182,7 @@ export default function Page() {
 
   return (
     <main className="page-shell">
-      <AppHeader title="Stock Search">
+      <AppHeader title="Search">
         <div className="header-stats">
           <div className="stat-card">
             <span className="stat-dot stat-dot-w3" />

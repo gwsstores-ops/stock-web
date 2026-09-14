@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPages } from "@/lib/supabasePaging";
+import { cached } from "@/lib/routeCache";
 
 export async function GET() {
-  const { data, error } = await fetchAllPages<{ cat: string | null }>(
-    (from, to) =>
+  const { data, error } = await cached("categories", 60_000, () =>
+    fetchAllPages<{ cat: string | null }>((from, to) =>
       supabase
         .from("stock")
         .select("cat")
@@ -12,6 +13,7 @@ export async function GET() {
         .not("cat", "is", null)
         .order("id", { ascending: true })
         .range(from, to)
+    )
   );
 
   if (error) {
