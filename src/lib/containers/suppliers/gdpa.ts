@@ -1,5 +1,5 @@
 import type { ParsedLine, PdfPageText, PdfWord, SupplierRules } from "../types";
-import { finishSuffix, holeToDiam, isKnownHole } from "../rules";
+import { finishSuffix } from "../rules";
 
 /*
   GDPA FASTENERS packing list
@@ -176,6 +176,22 @@ const classify = (description: string, rawSize: string): Classified => {
     return { cat: "BOLTS", item: finish ? `BOLT ${finish}` : null, review };
   }
 
+  if (/^THREADED\s*STUD/.test(upper)) {
+    return { cat: "OTHER", item: finish ? `STUD ${finish}` : null, review };
+  }
+
+  if (/^U[\s-]*BOLT/.test(upper)) {
+    // The reach (a third dimension beyond diameter and length) and its S/L
+    // tag come from a pipe-diameter reference table, not from anything
+    // printed on the packing list - left for manual entry every time.
+    review.push("U-bolt reach and (S)/(L) tag are not on the packing list, add by hand");
+    return { cat: "U/J/C BOLTS", item: finish ? `U BOLT ${finish}` : null, review };
+  }
+
+  if (/^SQ\.?\s*SQ\.?\s*BOLT|^SQUARE\s*BOLT/.test(upper)) {
+    return { cat: "HOLDING DOWN BOLTS", item: finish ? `HDB ${finish}` : null, review };
+  }
+
   review.push("Description did not match any GDPA rule");
   return { cat: null, item: null, review };
 };
@@ -214,19 +230,17 @@ const parseSize = (rawSize: string, cat: string | null): SizeResult => {
     }
 
     const hole = Number(holeMatch[1]);
-    const diam = holeToDiam(hole);
 
-    if (!isKnownHole(hole)) {
-      review.push(`Hole ${hole} is not in the hole table, diameter guessed`);
-    }
     if (width !== depth) {
       review.push(`Plate is ${width} x ${depth}, not square`);
     }
 
     return {
-      diamValue: diam,
+      // diam_value is the hole size itself - square washers aren't quoted by
+      // an equivalent bolt diameter, and no conversion is applied.
+      diamValue: hole,
       lengthValue: width,
-      diamDisplay: diam === null ? "" : String(diam),
+      diamDisplay: String(hole),
       lengthDisplay: String(width),
       sizeOverride: `${width}² X ${thickness} X ${hole}`,
       review
@@ -357,10 +371,11 @@ export const gdpa: SupplierRules = {
   notes: [
     "One row per line item, anchored on the W. Case No. column at the far left.",
     "Quantity is the TOTAL QTY. column - the sixth figure on the row, third from the right.",
-    "HEX BOLT becomes BOLTS / BOLT, HEX SCREW becomes ASSEMBLED / ASS, SQ PLATE WASHER becomes SQUARE WASHERS.",
-    "The finish suffix comes from the description: HOT DIP GALV is HDG, ELECTRO ZINC PLATED is ZP.",
+    "HEX BOLT becomes BOLTS / BOLT, HEX SCREW becomes ASSEMBLED / ASS, SQ PLATE WASHER becomes SQUARE WASHERS, THREADED STUD becomes OTHER / STUD, U-BOLT becomes U/J/C BOLTS / U BOLT, SQ.SQ. BOLT (or SQUARE BOLT) becomes HOLDING DOWN BOLTS / HDB.",
+    "The finish suffix comes from the description: HOT DIP GALV is HDG, ELECTRO ZINC PLATED is ZP, SELF COLOUR is SC.",
     "Sizes read as M.22 X 300, ignoring any [THREAD - 150MM] note.",
-    "Square washers read as either 40 X 40 X 10MM - [ROUND HOLE 13] or 50MM X 50MM X 3MM THK [ROUND HOLE = 21MM]: the size column becomes plate² X thickness X hole, the diameter comes from the hole size and the length from the plate width.",
+    "Square washers read as either 40 X 40 X 10MM - [ROUND HOLE 13] or 50MM X 50MM X 3MM THK [ROUND HOLE = 21MM]: the size column becomes plate² X thickness X hole, diam_value is the hole size itself (not converted to a bolt size), and length_value is the plate width.",
+    "U-bolts only carry two numbers on the packing list (diameter and length) - the reach and (S)/(L) tag on a finished label come from a pipe-diameter reference table, not the PDF, so they're left for manual entry and the row is flagged.",
     "PO is taken from Buyer Order No:PO000003425 with the prefix and leading zeros stripped.",
     "Scanned (non-digital) packing lists are read by OCR, which reports one box per word instead of per line and can land a few points off a row's true position - both are allowed for, but OCR pages are still worth checking closely."
   ],
