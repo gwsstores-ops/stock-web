@@ -81,7 +81,7 @@ export default function QrMovePage() {
           <Image src="/qr-icon.png" alt="" width={38} height={38} />
         </div>
         <div className="scanner-title">
-          {scanning ? "Camera ready" : "Scan a pallet ID"}
+          {scanning ? "Camera ready" : "Scan a location"}
         </div>
         {!scanning ? (
           <button

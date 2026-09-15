@@ -2,16 +2,18 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPages } from "@/lib/supabasePaging";
 
+type CountRow = {
+  area: string;
+  pallet_id: string | null;
+};
+
 export async function GET() {
-  const { data, error } = await fetchAllPages<{
-    area: string;
-    location: string;
-  }>((from, to) =>
+  const { data, error } = await fetchAllPages<CountRow>((from, to) =>
     supabase
       .from("stock")
-      .select("area, location")
+      .select("area, pallet_id")
       .in("area", ["W3", "W4"])
-      .not("location", "is", null)
+      .not("pallet_id", "is", null)
       .order("id", { ascending: true })
       .range(from, to)
   );
@@ -26,8 +28,8 @@ export async function GET() {
   };
 
   data?.forEach((row) => {
-    if (row.area === "W3" || row.area === "W4") {
-      counts[row.area].add(row.location);
+    if ((row.area === "W3" || row.area === "W4") && row.pallet_id) {
+      counts[row.area].add(row.pallet_id);
     }
   });
 

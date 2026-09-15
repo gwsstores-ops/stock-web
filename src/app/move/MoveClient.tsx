@@ -4,11 +4,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import AppHeader from "@/components/AppHeader";
-import { splitStockLocation } from "@/lib/stockLocation";
 
 type Row = {
   id: number;
-  location: string;
+  location: string | null;
+  pallet_id: string | null;
   area?: string
   item: string;
   size: string;
@@ -17,10 +17,16 @@ type Row = {
 
 export default function MoveClient() {
   const [palletId, setPalletId] = useState("");
-  const [selectedLocation, setSelectedLocation] = useState("");
   const [previewRows, setPreviewRows] = useState<Row[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [resultModal, setResultModal] = useState<{
+    area: string;
+    message: string;
+  } | null>(null);
+  const [locationModalArea, setLocationModalArea] = useState<string | null>(null);
+  const [newLocationValue, setNewLocationValue] = useState("");
+  const [relocating, setRelocating] = useState(false);
 
   const searchParams = useSearchParams();
   const suggestionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -45,22 +51,19 @@ export default function MoveClient() {
 
     try {
       const res = await fetch(
-        `/api/preview?palletId=${encodeURIComponent(target)}`
+        `/api/preview?location=${encodeURIComponent(target)}&field=pallet_id`
       );
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Pallet lookup failed");
+        throw new Error(data.error || "Location lookup failed");
       }
 
-      const rows: Row[] = data.rows || [];
-      setPreviewRows(rows);
-      setSelectedLocation(rows[0]?.location || "");
+      setPreviewRows(data.rows || []);
     } catch (error) {
       setPreviewRows([]);
-      setSelectedLocation("");
       const message =
-        error instanceof Error ? error.message : "Pallet lookup failed";
+        error instanceof Error ? error.message : "Location lookup failed";
       alert(message);
     }
   }, []);
@@ -72,10 +75,13 @@ export default function MoveClient() {
  const handleMove = async (targetArea: string) => {
   if (!previewRows.length || loading) return;
 
-  const confirmMove = confirm(
-    `Move ${previewRows.length} row(s) to ${targetArea}?`
+  const uniquePalletIds = Array.from(
+    new Set(previewRows.map((row) => row.pallet_id ?? row.location ?? "Unknown"))
   );
-  if (!confirmMove) return;
+  const palletMessage =
+    uniquePalletIds.length === 1
+      ? `Pallet: ${uniquePalletIds[0]}`
+      : `Pallets: ${uniquePalletIds.join(", ")}`;
 
   setLoading(true);
 
@@ -84,8 +90,9 @@ export default function MoveClient() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        location: selectedLocation,
-        target: targetArea
+        location: palletId,
+        target: targetArea,
+        field: "pallet_id"
       })
     });
     const data = await res.json();
@@ -94,29 +101,89 @@ export default function MoveClient() {
       throw new Error(data.error || "Move failed");
     }
 
-    alert(data.message || "Move complete");
+    setResultModal({ area: targetArea, message: palletMessage });
 
     setPalletId("");
-    setSelectedLocation("");
     setPreviewRows([]);
     setSuggestions([]);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Move failed";
-    alert(`Move failed: ${message}`);
+    setResultModal({ area: targetArea, message: `Move failed: ${message}` });
   } finally {
     setLoading(false);
   }
 };
 
+  const normalizeArea = (area: string) => {
+    const upper = area.toUpperCase();
+    if (upper.startsWith("GWS")) return "GWS";
+    if (upper.startsWith("W3")) return "W3";
+    if (upper.startsWith("W4")) return "W4";
+    return upper;
+  };
+
+  const isSameArea = (targetArea: string) =>
+    previewRows.length > 0 &&
+    previewRows.every((row) => row.area && normalizeArea(row.area) === targetArea);
+
+  const handleDestinationClick = (targetArea: string) => {
+    if (!previewRows.length || loading) return;
+
+    if (isSameArea(targetArea)) {
+      setNewLocationValue(previewRows[0]?.location ?? "");
+      setLocationModalArea(targetArea);
+      return;
+    }
+
+    handleMove(targetArea);
+  };
+
+  /* ==============================
+     RELOCATE (same-area location change)
+  ============================== */
+
+  const handleRelocate = async () => {
+    const trimmed = newLocationValue.trim().toUpperCase();
+    if (!trimmed || relocating) return;
+
+    setRelocating(true);
+
+    try {
+      const res = await fetch("/api/relocate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location: palletId, newLocation: trimmed })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Location update failed");
+      }
+
+      const area = locationModalArea ?? "GWS";
+      setLocationModalArea(null);
+      setResultModal({ area, message: `Location: ${trimmed}` });
+
+      setPalletId("");
+      setPreviewRows([]);
+      setSuggestions([]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Location update failed";
+      const area = locationModalArea ?? "GWS";
+      setLocationModalArea(null);
+      setResultModal({ area, message: `Location update failed: ${message}` });
+    } finally {
+      setRelocating(false);
+    }
+  };
 
   /* ==============================
      AUTOCOMPLETE
   ============================== */
 
-  const handlePalletIdChange = (value: string) => {
+  const handleLocationChange = (value: string) => {
     const upper = value.toUpperCase();
     setPalletId(upper);
-    setSelectedLocation("");
     setPreviewRows([]);
     cancelSuggestionSearch();
 
@@ -131,13 +198,13 @@ export default function MoveClient() {
 
       try {
         const res = await fetch(
-          `/api/preview?palletId=${encodeURIComponent(upper)}&match=contains`,
+          `/api/preview?location=${encodeURIComponent(upper)}&match=contains&field=pallet_id`,
           { signal: controller.signal }
         );
         const data = await res.json();
 
         if (!res.ok) {
-          throw new Error(data.error || "Pallet search failed");
+          throw new Error(data.error || "Location search failed");
         }
 
         setSuggestions(data.locations || []);
@@ -161,10 +228,8 @@ export default function MoveClient() {
 
     if (scannedLocation) {
       const scannedValue = scannedLocation.toUpperCase();
-      const parsed = splitStockLocation(scannedValue);
-      const scannedPalletId = parsed.palletId || scannedValue;
-      setPalletId(scannedPalletId);
-      handlePreview(scannedPalletId);
+      setPalletId(scannedValue);
+      handlePreview(scannedValue);
     }
   }, [searchParams, handlePreview]);
 
@@ -172,6 +237,12 @@ export default function MoveClient() {
     GWS: "/gws.png",
     W3: "/w3.png",
     W4: "/w4.png"
+  };
+
+  const moveIconMap: Record<string, string> = {
+    GWS: "/icons/move_gws.png",
+    W3: "/icons/move_w3.png",
+    W4: "/icons/move_w4.png"
   };
 
   return (
@@ -191,9 +262,9 @@ export default function MoveClient() {
             <span className="field-label">Pallet ID</span>
             <input
               type="text"
-              placeholder="For example: YONG176_33"
+              placeholder="For example: 3A98 or BRK5230-17"
               value={palletId}
-              onChange={(e) => handlePalletIdChange(e.target.value)}
+              onChange={(e) => handleLocationChange(e.target.value)}
               className="control"
               autoComplete="off"
             />
@@ -201,28 +272,21 @@ export default function MoveClient() {
 
         {suggestions.length > 0 && (
           <div className="suggestions" role="listbox">
-            {suggestions.map((suggestion) => {
-              const parsed = splitStockLocation(suggestion);
-              const suggestionPalletId = parsed.palletId || suggestion;
-
-              return (
-                <button
-                  type="button"
-                  key={suggestion}
-                  className="suggestion suggestion-pallet"
-                  onClick={() => {
-                    cancelSuggestionSearch();
-                    setPalletId(suggestionPalletId);
-                    setSelectedLocation(suggestion);
-                    setSuggestions([]);
-                    handlePreview(suggestionPalletId);
-                  }}
-                >
-                  <span>{suggestionPalletId}</span>
-                  <small>Location: {parsed.location}</small>
-                </button>
-              );
-            })}
+            {suggestions.map((s) => (
+              <button
+                type="button"
+                key={s}
+                className="suggestion"
+                onClick={() => {
+                  cancelSuggestionSearch();
+                  setPalletId(s);
+                  setSuggestions([]);
+                  handlePreview(s);
+                }}
+              >
+                {s}
+              </button>
+            ))}
           </div>
         )}
         </div>
@@ -232,51 +296,42 @@ export default function MoveClient() {
         <section className="panel">
           <div className="section-heading">
             <div>
-              <p className="section-kicker">Pallet contents</p>
+              <p className="section-kicker">Location contents</p>
               <h2>{previewRows.length} stock line{previewRows.length === 1 ? "" : "s"}</h2>
             </div>
           </div>
 
           <div className="preview-list">
-            {previewRows.map((row) => {
-              const parsed = splitStockLocation(row.location);
-
-              return (
-                <div key={row.id} className="preview-card">
-                  <div className="preview-topline">
-                    <div className="preview-location-details">
-                      <div className="stock-result-field">
-                        <span className="stock-result-label">Location</span>
-                        <span className="preview-location">
-                          {parsed.location}
-                        </span>
-                      </div>
-                      <div className="stock-result-field">
-                        <span className="stock-result-label">Pallet ID</span>
-                        <span className="pallet-id">
-                          {parsed.palletId || "—"}
-                        </span>
-                      </div>
-                    </div>
-                    {row.area && (
-                      <span
-                        className={`area-badge area-badge-${row.area
-                          .toLowerCase()
-                          .replaceAll("_", "-")}`}
-                      >
-                        {row.area}
+            {previewRows.map((row) => (
+              <div key={row.id} className="preview-card">
+                <div className="preview-topline">
+                  <div className="preview-location">
+                    {row.pallet_id ?? row.location}
+                    {row.location && row.pallet_id && row.location !== row.pallet_id && (
+                      <span className="preview-sublocation">
+                        {" "}
+                        · {row.location}
                       </span>
                     )}
                   </div>
-                  <div className="preview-item">
-                    {row.item} — {row.size}
-                  </div>
-                  <div className="preview-qty">
-                    Quantity: {row.qty?.toLocaleString() ?? 0}
-                  </div>
+                  {row.area && (
+                    <span
+                      className={`area-badge area-badge-${row.area
+                        .toLowerCase()
+                        .replaceAll("_", "-")}`}
+                    >
+                      {row.area}
+                    </span>
+                  )}
                 </div>
-              );
-            })}
+                <div className="preview-item">
+                  {row.item} — {row.size}
+                </div>
+                <div className="preview-qty">
+                  Quantity: {row.qty?.toLocaleString() ?? 0}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       )}
@@ -299,7 +354,7 @@ export default function MoveClient() {
                 key={area}
                 className="destination-button"
                 disabled={disabled}
-                onClick={() => handleMove(area)}
+                onClick={() => handleDestinationClick(area)}
               >
                 <Image
                   src={iconMap[area]}
@@ -314,6 +369,57 @@ export default function MoveClient() {
           })}
         </div>
       </section>
+
+      {locationModalArea && (
+        <div className="modal-overlay" onClick={() => setLocationModalArea(null)}>
+          <div className="modal-panel move-modal" onClick={(e) => e.stopPropagation()}>
+            <p className="section-kicker">Same area</p>
+            <h2>Move location</h2>
+            <input
+              type="text"
+              className="control"
+              value={newLocationValue}
+              onChange={(e) => setNewLocationValue(e.target.value.toUpperCase())}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleRelocate();
+              }}
+              placeholder="New location"
+              autoComplete="off"
+              autoFocus
+            />
+            <button
+              type="button"
+              className="button button-primary button-block"
+              onClick={handleRelocate}
+              disabled={relocating || !newLocationValue.trim()}
+            >
+              {relocating ? "Updating…" : "Enter"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {resultModal && (
+        <div className="modal-overlay" onClick={() => setResultModal(null)}>
+          <div className="modal-panel move-modal" onClick={(e) => e.stopPropagation()}>
+            <Image
+              src={moveIconMap[resultModal.area]}
+              alt={resultModal.area}
+              width={96}
+              height={96}
+              className="move-modal-icon"
+            />
+            <p className="move-modal-text">{resultModal.message}</p>
+            <button
+              type="button"
+              className="button button-primary button-block"
+              onClick={() => setResultModal(null)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

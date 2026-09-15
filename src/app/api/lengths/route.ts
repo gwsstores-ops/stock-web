@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPages } from "@/lib/supabasePaging";
+import { cached } from "@/lib/routeCache";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -8,19 +9,24 @@ export async function GET(request: Request) {
   const item = searchParams.get("item");
   const diam = searchParams.get("diam");
 
-  const { data, error } = await fetchAllPages<{
-    length_value: number | null;
-    length_display: string | null;
-  }>((from, to) =>
-    supabase
-      .from("stock")
-      .select("length_value, length_display")
-      .eq("cat", cat)
-      .eq("item", item)
-      .eq("diam_value", Number(diam))
-      .in("area", ["GWS", "W3", "W4"])
-      .order("id", { ascending: true })
-      .range(from, to)
+  const { data, error } = await cached(
+    `lengths:${cat}:${item}:${diam}`,
+    60_000,
+    () =>
+      fetchAllPages<{
+        length_value: number | null;
+        length_display: string | null;
+      }>((from, to) =>
+        supabase
+          .from("stock")
+          .select("length_value, length_display")
+          .eq("cat", cat)
+          .eq("item", item)
+          .eq("diam_value", Number(diam))
+          .in("area", ["GWS", "W3", "W4"])
+          .order("id", { ascending: true })
+          .range(from, to)
+      )
   );
 
   if (error) {
@@ -36,7 +42,7 @@ export async function GET(request: Request) {
     const label = row.length_display || value;
     const currentLabel = unique.get(value);
 
-    if (!currentLabel || (!currentLabel.match(/[A-Za-z]/) && label.match(/[A-Za-z]/))) {
+    if (!currentLabel || (!/[A-Za-z]/.test(currentLabel) && /[A-Za-z]/.test(label))) {
       unique.set(value, label);
     }
   }

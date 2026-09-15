@@ -1,67 +1,61 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { splitStockLocation } from "@/lib/stockLocation";
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const locationQuery = searchParams.get("location");
-    const palletIdQuery = searchParams.get("palletId")?.trim();
+    const area = searchParams.get("area");
     const matchMode = searchParams.get("match");
+    const field = searchParams.get("field") === "pallet_id" ? "pallet_id" : "location";
 
-    if (!locationQuery && !palletIdQuery) {
+    if (!locationQuery && !area) {
       return NextResponse.json(
-        { error: "Missing pallet ID" },
+        { error: "Missing location or area" },
         { status: 400 }
       );
     }
 
-    const searchQuery = palletIdQuery || locationQuery || "";
-
-    const locationPattern =
-      matchMode === "contains" ? `%${searchQuery}%` : `${searchQuery}%`;
+    const locationPattern = locationQuery
+      ? matchMode === "contains"
+        ? `%${locationQuery}%`
+        : `${locationQuery}%`
+      : null;
 
     if (matchMode === "contains") {
-      const { data, error } = await supabase
-        .from("stock")
-        .select("location")
-        .ilike("location", locationPattern)
-        .order("location", { ascending: true })
+      let query = supabase.from("stock").select(field);
+      if (locationPattern) query = query.ilike(field, locationPattern);
+      if (area) query = query.eq("area", area);
+
+      const { data, error } = await query
+        .order(field, { ascending: true })
         .limit(100);
 
       if (error) throw error;
 
       const locations = [
-        ...new Set(data.map((row) => row.location).filter(Boolean))
+        ...new Set(
+          data.map((row) => (row as Record<string, string>)[field]).filter(Boolean)
+        )
       ].slice(0, 20);
 
       return NextResponse.json({ locations });
     }
 
-    if (palletIdQuery) {
-      const { data, error } = await supabase
-        .from("stock")
-        .select("id, location, area, item, size, qty, stock_check")
-        .ilike("location", `%${palletIdQuery}%`)
-        .order("location", { ascending: true });
-
-      if (error) throw error;
-
-      const normalizedPalletId = palletIdQuery.toUpperCase();
-      const rows = data.filter(
-        (row) =>
-          splitStockLocation(row.location).palletId.toUpperCase() ===
-          normalizedPalletId
-      );
-
-      return NextResponse.json({ rows });
-    }
-
-    const { data, error } = await supabase
+    let query = supabase
       .from("stock")
-      .select("id, location, area, item, size, qty, stock_check")
-      .ilike("location", locationPattern)
-      .order("location", { ascending: true });
+      .select("id, location, pallet_id, area, item, size, qty, stock_check");
+
+    if (locationQuery && matchMode === "exact") {
+      query = query.eq(field, locationQuery);
+    } else if (locationPattern) {
+      query = query.ilike(field, locationPattern);
+    }
+    if (area) query = query.eq("area", area);
+
+    const { data, error } = await query
+      .order("location", { ascending: true, nullsFirst: false })
+      .order("pallet_id", { ascending: true });
 
     if (error) throw error;
 

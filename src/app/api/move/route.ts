@@ -3,7 +3,8 @@ import { supabase } from "@/lib/supabase";
 
 type StockRow = {
   id: number;
-  location: string;
+  location: string | null;
+  pallet_id: string | null;
   item: string;
   size: string;
   qty: number | null;
@@ -12,7 +13,8 @@ type StockRow = {
 
 export async function POST(req: Request) {
   try {
-    const { location, target } = await req.json();
+    const { location, target, field } = await req.json();
+    const matchField = field === "location" ? "location" : "pallet_id";
 
     if (!location || !target) {
       return NextResponse.json(
@@ -26,8 +28,8 @@ export async function POST(req: Request) {
     // 1️⃣ Get rows that will be moved
     const { data: rows, error: fetchError } = await supabase
       .from("stock")
-      .select("id, location, item, size, qty, area")
-      .eq("location", location);
+      .select("id, location, pallet_id, item, size, qty, area")
+      .ilike(matchField, `${location}%`);
 
     if (fetchError) throw fetchError;
     if (!rows || rows.length === 0) {
@@ -41,6 +43,7 @@ export async function POST(req: Request) {
     const logEntries = rows.map((row: StockRow) => ({
       stock_id: row.id,
       location: row.location,
+      pallet_id: row.pallet_id,
       item: row.item,
       size: row.size,
       qty: row.qty,
@@ -58,7 +61,7 @@ export async function POST(req: Request) {
     const { error: updateError } = await supabase
       .from("stock")
       .update({ area: newArea })
-      .eq("location", location);
+      .ilike(matchField, `${location}%`);
 
     if (updateError) throw updateError;
 
