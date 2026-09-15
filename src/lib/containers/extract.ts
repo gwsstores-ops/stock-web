@@ -36,18 +36,45 @@ const loadPdfJs = async (): Promise<PdfJs> => {
   return pdfjsPromise;
 };
 
+type TesseractWorker = Awaited<
+  ReturnType<typeof import("tesseract.js")["createWorker"]>
+>;
+
 type OcrWord = {
   text: string;
   bbox: { x0: number; y0: number; x1: number; y1: number };
 };
 
+type OcrBlock = {
+  paragraphs: {
+    lines: {
+      words: OcrWord[];
+    }[];
+  }[];
+};
+
+/**
+ * Word-level positions only come back from tesseract.js when the recognise
+ * call explicitly asks for `blocks` output - the default output is `{ text:
+ * true }`, which leaves `data.blocks` (and any per-word boxes) null. The
+ * top-level `recognize()` shorthand has no way to pass that option, so a
+ * worker is created and reused across every scanned page instead.
+ */
 const ocrPage = async (
+  worker: TesseractWorker,
   canvas: HTMLCanvasElement,
   pageNumber: number
 ): Promise<PdfWord[]> => {
-  const { recognize } = await import("tesseract.js");
-  const result = await recognize(canvas, "eng");
-  const words = (result.data as unknown as { words?: OcrWord[] }).words ?? [];
+  const result = await worker.recognize(canvas, {}, { blocks: true });
+  const blocks = ((result.data as unknown as { blocks?: OcrBlock[] | null })
+    .blocks ?? []) as OcrBlock[];
+
+  const words = blocks.flatMap((block) =>
+    block.paragraphs.flatMap((paragraph) =>
+      paragraph.lines.flatMap((line) => line.words)
+    )
+  );
+
   const height = canvas.height;
 
   return words
@@ -71,48 +98,59 @@ export const extractPdf = async (
   const doc = await pdfjs.getDocument({ data, useSystemFonts: true }).promise;
   const pages: PdfPageText[] = [];
 
-  for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber += 1) {
-    onProgress?.({ page: pageNumber, pages: doc.numPages, stage: "text" });
+  let worker: TesseractWorker | null = null;
 
-    const page = await doc.getPage(pageNumber);
-    const content = await page.getTextContent();
+  try {
+    for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber += 1) {
+      onProgress?.({ page: pageNumber, pages: doc.numPages, stage: "text" });
 
-    const words: PdfWord[] = content.items
-      .map((item) => item as { str?: string; transform?: number[] })
-      .filter((item) => item.str?.trim() && item.transform)
-      .map((item) => ({
+      const page = await doc.getPage(pageNumber);
+      const content = await page.getTextContent();
+
+      const words: PdfWord[] = content.items
+        .map((item) => item as { str?: string; transform?: number[] })
+        .filter((item) => item.str?.trim() && item.transform)
+        .map((item) => ({
+          page: pageNumber,
+          x: item.transform![4],
+          y: item.transform![5],
+          text: item.str!
+        }));
+
+      if (words.length >= TEXT_LAYER_MIN_WORDS) {
+        pages.push({ page: pageNumber, words, ocr: false });
+        continue;
+      }
+
+      onProgress?.({ page: pageNumber, pages: doc.numPages, stage: "ocr" });
+
+      const viewport = page.getViewport({ scale: OCR_SCALE });
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+
+      const context = canvas.getContext("2d");
+
+      if (!context) {
+        pages.push({ page: pageNumber, words, ocr: false });
+        continue;
+      }
+
+      await page.render({ canvas, canvasContext: context, viewport }).promise;
+
+      if (!worker) {
+        const { createWorker } = await import("tesseract.js");
+        worker = await createWorker("eng");
+      }
+
+      pages.push({
         page: pageNumber,
-        x: item.transform![4],
-        y: item.transform![5],
-        text: item.str!
-      }));
-
-    if (words.length >= TEXT_LAYER_MIN_WORDS) {
-      pages.push({ page: pageNumber, words, ocr: false });
-      continue;
+        words: await ocrPage(worker, canvas, pageNumber),
+        ocr: true
+      });
     }
-
-    onProgress?.({ page: pageNumber, pages: doc.numPages, stage: "ocr" });
-
-    const viewport = page.getViewport({ scale: OCR_SCALE });
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.ceil(viewport.width);
-    canvas.height = Math.ceil(viewport.height);
-
-    const context = canvas.getContext("2d");
-
-    if (!context) {
-      pages.push({ page: pageNumber, words, ocr: false });
-      continue;
-    }
-
-    await page.render({ canvas, canvasContext: context, viewport }).promise;
-
-    pages.push({
-      page: pageNumber,
-      words: await ocrPage(canvas, pageNumber),
-      ocr: true
-    });
+  } finally {
+    await worker?.terminate();
   }
 
   return pages;

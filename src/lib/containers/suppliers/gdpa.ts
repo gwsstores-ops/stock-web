@@ -17,15 +17,27 @@ import { finishSuffix, holeToDiam, isKnownHole } from "../rules";
   A line item's description can start a couple of points ABOVE its figures, and
   its order number can spill onto the next page, so blocks are cut on y with a
   small upward tolerance and run across page breaks.
+
+  Scanned packing lists come through OCR instead of a text layer, and OCR is
+  noisier in two specific ways this parser has to allow for:
+   - the case number, its description and its figures can land 5-8pt apart on
+     what is really the same printed row, instead of sharing one exact y like
+     a digital PDF's text does, so row-matching needs a wider tolerance; and
+   - OCR reports one bounding box per WORD, not per line, so a wrapped line
+     like "M.30 X 130" arrives as three separate tokens ("M.30", "X", "130")
+     instead of the single string a digital PDF provides. Those tokens are
+     regrouped back into whole lines (clusterTextLines) before anything is
+     matched against a size or description pattern.
 */
 
-const ANCHOR_X_MIN = 28;
-const ANCHOR_X_MAX = 50;
+const ANCHOR_X_MIN = 25;
+const ANCHOR_X_MAX = 62;
 const TEXT_X_MIN = 80;
 const TEXT_X_MAX = 340;
 const FIGURE_X_MIN = 340;
-const ROW_Y_TOLERANCE = 1.5;
+const ROW_Y_TOLERANCE = 8;
 const BLOCK_Y_LEAD = 4;
+const LINE_CLUSTER_TOLERANCE = 5;
 
 /**
  * Figures printed to the right of the case number, left to right, once the "-"
@@ -48,7 +60,7 @@ const flatten = (pages: PdfPageText[]): PdfWord[] =>
     .filter((word) => word.text.length > 0)
     .sort((a, b) => sortKey(a.page, a.y) - sortKey(b.page, b.y));
 
-/** The figures printed on the same baseline as a case number. */
+/** The figures printed on the same row as a case number (see ROW_Y_TOLERANCE). */
 const rowFigures = (words: PdfWord[], anchor: PdfWord) =>
   words
     .filter(
@@ -61,18 +73,65 @@ const rowFigures = (words: PdfWord[], anchor: PdfWord) =>
     .filter((word) => isNumeric(word.text))
     .map((word) => toNumber(word.text));
 
+/** Whether a case number has a description sitting beside it on the same row. */
+const hasNearbyDescription = (words: PdfWord[], anchor: PdfWord) =>
+  words.some(
+    (word) =>
+      word.page === anchor.page &&
+      Math.abs(word.y - anchor.y) <= ROW_Y_TOLERANCE &&
+      word.x >= TEXT_X_MIN &&
+      word.x <= TEXT_X_MAX
+  );
+
 const findAnchors = (words: PdfWord[]) =>
   words.filter((word) => {
     if (word.x < ANCHOR_X_MIN || word.x > ANCHOR_X_MAX) return false;
     if (!/^\d{1,3}$/.test(word.text)) return false;
 
-    // A header number sitting in the same column has no figures beside it.
-    return rowFigures(words, word).length >= FIGURE_COUNT - 2;
+    // A header number sitting in the same column has no description or
+    // figures beside it - a real line item always has both, even when OCR
+    // has garbled some of the figures themselves.
+    return hasNearbyDescription(words, word) && rowFigures(words, word).length >= 1;
   });
+
+/**
+ * Regroups words back into whole lines. A digital PDF already hands over one
+ * whole line per word (so every "cluster" here ends up holding just that one
+ * word, unchanged); OCR hands over one word per box, and this stitches lines
+ * like "M.30 X 130" back together from "M.30", "X", "130". Real lines of
+ * description are spaced roughly 9pt or more apart, well outside
+ * LINE_CLUSTER_TOLERANCE, so separate lines are not merged.
+ */
+const clusterTextLines = (words: PdfWord[]): string[] => {
+  const sorted = [...words].sort((a, b) => b.y - a.y);
+  const clusters: PdfWord[][] = [];
+
+  for (const word of sorted) {
+    const current = clusters[clusters.length - 1];
+    const clusterY = current?.[0]?.y;
+
+    if (current && clusterY !== undefined && clusterY - word.y <= LINE_CLUSTER_TOLERANCE) {
+      current.push(word);
+    } else {
+      clusters.push([word]);
+    }
+  }
+
+  return clusters.map((cluster) =>
+    cluster
+      .sort((a, b) => a.x - b.x)
+      .map((word) => word.text)
+      .join(" ")
+  );
+};
 
 const SIZE_PATTERNS = {
   threaded: /^M\.?\s*(\d+(?:\.\d+)?)\s*[Xx]\s*(\d+(?:\.\d+)?)/,
-  plate: /^(\d+(?:\.\d+)?)\s*[Xx]\s*(\d+(?:\.\d+)?)\s*[Xx]\s*(\d+(?:\.\d+)?)\s*MM/i
+  // Matches both "40 X 40 X 10MM" (one trailing MM) and "50MM X 50MM X 3MM"
+  // (every number carrying its own MM suffix) - different packing lists from
+  // the same supplier have used both conventions.
+  plate:
+    /^(\d+(?:\.\d+)?)\s*(?:MM)?\s*[Xx]\s*(\d+(?:\.\d+)?)\s*(?:MM)?\s*[Xx]\s*(\d+(?:\.\d+)?)\s*MM\b/i
 };
 
 const looksLikeSize = (text: string) =>
@@ -138,7 +197,8 @@ const parseSize = (rawSize: string, cat: string | null): SizeResult => {
     const width = Number(plate[1]);
     const depth = Number(plate[2]);
     const thickness = Number(plate[3]);
-    const holeMatch = rawSize.match(/HOLE\s*(\d+(?:\.\d+)?)/i);
+    // Matches "HOLE 13" and "HOLE = 21MM" alike - only the digits are kept.
+    const holeMatch = rawSize.match(/HOLE\s*[:=]?\s*(\d+(?:\.\d+)?)/i);
 
     if (!holeMatch) {
       review.push("Square washer has no hole size, diameter left blank");
@@ -226,14 +286,13 @@ const parse = (pages: PdfPageText[]): ParsedLine[] => {
     // A line item's wording always sits on the same page as its figures - only
     // the order number spills over a page break - so restricting the wording to
     // the anchor's page keeps the next page's letterhead out of it.
-    const textLines = block
-      .filter(
-        (word) =>
-          word.page === anchor.page &&
-          word.x >= TEXT_X_MIN &&
-          word.x <= TEXT_X_MAX
-      )
-      .map((word) => word.text);
+    const textWords = block.filter(
+      (word) =>
+        word.page === anchor.page &&
+        word.x >= TEXT_X_MIN &&
+        word.x <= TEXT_X_MAX
+    );
+    const textLines = clusterTextLines(textWords);
 
     const sizeIndex = textLines.findIndex(looksLikeSize);
     const rawSize = sizeIndex === -1 ? "" : textLines[sizeIndex];
@@ -243,8 +302,12 @@ const parse = (pages: PdfPageText[]): ParsedLine[] => {
       .replace(/\s+/g, " ")
       .trim();
 
-    const poWord = block.find((word) => /Buyer\s*Order\s*No/i.test(word.text));
-    const poMatch = poWord?.text.match(/PO0*(\d+)/i);
+    // Looked for directly on "PO<digits>" rather than the full "Buyer Order
+    // No" phrase: a digital PDF prints that phrase as one string, but OCR
+    // reports one word per box ("Buyer", "Order", "No:PO000003857,"), so no
+    // single OCR word ever contains the whole phrase to match against.
+    const poWord = block.find((word) => /PO0*\d{3,}/i.test(word.text));
+    const poMatch = poWord?.text.match(/PO0*(\d{3,})/i);
 
     const figures = rowFigures(words, anchor);
     const review: string[] = [];
@@ -297,8 +360,9 @@ export const gdpa: SupplierRules = {
     "HEX BOLT becomes BOLTS / BOLT, HEX SCREW becomes ASSEMBLED / ASS, SQ PLATE WASHER becomes SQUARE WASHERS.",
     "The finish suffix comes from the description: HOT DIP GALV is HDG, ELECTRO ZINC PLATED is ZP.",
     "Sizes read as M.22 X 300, ignoring any [THREAD - 150MM] note.",
-    "Square washers read as 40 X 40 X 10MM - [ROUND HOLE 13]: the size column becomes 40² X 10 X 13, the diameter comes from the hole size and the length from the plate width.",
-    "PO is taken from Buyer Order No:PO000003425 with the prefix and leading zeros stripped."
+    "Square washers read as either 40 X 40 X 10MM - [ROUND HOLE 13] or 50MM X 50MM X 3MM THK [ROUND HOLE = 21MM]: the size column becomes plate² X thickness X hole, the diameter comes from the hole size and the length from the plate width.",
+    "PO is taken from Buyer Order No:PO000003425 with the prefix and leading zeros stripped.",
+    "Scanned (non-digital) packing lists are read by OCR, which reports one box per word instead of per line and can land a few points off a row's true position - both are allowed for, but OCR pages are still worth checking closely."
   ],
   parse
 };
