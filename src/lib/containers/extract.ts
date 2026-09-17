@@ -107,15 +107,30 @@ export const extractPdf = async (
       const page = await doc.getPage(pageNumber);
       const content = await page.getTextContent();
 
+      // Some suppliers' PDFs carry a /Rotate flag (the page content is authored
+      // sideways and rotated back to upright for display). item.transform is in
+      // that raw, unrotated space, so it's run through the page's own viewport
+      // and flipped back to a y-up page-space to normalise it - this is a
+      // no-op for the common case of an unrotated page, since the flip and the
+      // viewport's y-down flip cancel out.
+      const rotationViewport = page.getViewport({ scale: 1 });
+
       const words: PdfWord[] = content.items
         .map((item) => item as { str?: string; transform?: number[] })
         .filter((item) => item.str?.trim() && item.transform)
-        .map((item) => ({
-          page: pageNumber,
-          x: item.transform![4],
-          y: item.transform![5],
-          text: item.str!
-        }));
+        .map((item) => {
+          const [x, y] = rotationViewport.convertToViewportPoint(
+            item.transform![4],
+            item.transform![5]
+          );
+
+          return {
+            page: pageNumber,
+            x,
+            y: rotationViewport.height - y,
+            text: item.str!
+          };
+        });
 
       if (words.length >= TEXT_LAYER_MIN_WORDS) {
         pages.push({ page: pageNumber, words, ocr: false });

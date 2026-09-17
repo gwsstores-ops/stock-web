@@ -1,5 +1,6 @@
 import type { SupplierRules } from "../types";
 import { gdpa } from "./gdpa";
+import { longThread } from "./longThread";
 
 /**
  * A supplier whose packing list we have not seen yet. It still appears in the
@@ -18,8 +19,8 @@ const pending = (id: string, label: string): SupplierRules => ({
 
 export const SUPPLIERS: SupplierRules[] = [
   gdpa,
+  longThread,
   pending("NINGBO_JINDING", "NINGBO JINDING"),
-  pending("LONG_THREAD", "LONG THREAD"),
   pending("YONGHI", "YONGHI")
 ];
 
