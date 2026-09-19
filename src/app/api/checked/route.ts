@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { exactIlike } from "@/lib/exactMatch";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -8,7 +9,7 @@ export async function GET(req: Request) {
 
   let query = supabase
     .from("stock_flat")
-    .select("id, location, area, item, size, qty")
+    .select("id, location, pallet_id, area, item, size, qty")
     .or("stock_check.is.null,stock_check.eq.false");
 
   if (area) {
@@ -16,7 +17,7 @@ export async function GET(req: Request) {
   }
 
   if (location) {
-    query = query.ilike("location", `${location}%`);
+    query = query.ilike("location", exactIlike(location));
   }
 
   const { data, error } = await query;

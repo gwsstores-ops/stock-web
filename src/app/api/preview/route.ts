@@ -18,7 +18,7 @@ export async function GET(req: Request) {
     }
 
     const locationPattern = locationQuery
-      ? matchMode === "contains"
+      ? matchMode === "contains" || matchMode === "contains-rows"
         ? `%${escapeLike(locationQuery)}%`
         : `${escapeLike(locationQuery)}%`
       : null;

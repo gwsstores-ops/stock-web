@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import AppHeader from "@/components/AppHeader";
 
 type Row = {
@@ -25,21 +25,35 @@ export default function Page() {
   const [filterLocation, setFilterLocation] = useState("");
 
   /* ==============================
-     SEARCH
+     SEARCH (by pallet ID)
   ============================== */
 
-  const handleSearch = async (loc?: string, area?: string) => {
-    const target = loc ?? location;
-    const areaValue = area ?? lookupArea;
-    if (!target && !areaValue) return;
+  // "exact" = a suggestion was picked; "contains-rows" = whatever was typed
+  type SearchMode = "exact" | "contains-rows";
 
-    const params = new URLSearchParams();
-    if (target) params.set("location", target);
-    if (areaValue) params.set("area", areaValue);
+  const lastSearch = useRef<{ target: string; area: string; mode: SearchMode } | null>(null);
+  const suggestionRequest = useRef(0);
+
+  const runSearch = async (target: string, area: string, mode: SearchMode) => {
+    if (!target && !area) return;
+    lastSearch.current = { target, area, mode };
+
+    const params = new URLSearchParams({ field: "pallet_id" });
+    if (target) {
+      params.set("location", target);
+      params.set("match", mode);
+    }
+    if (area) params.set("area", area);
 
     const res = await fetch(`/api/preview?${params.toString()}`);
     const data = await res.json();
     setRows(data.rows || []);
+  };
+
+  // Re-run the search that produced the list on screen (after ticking a box, or a reset)
+  const refreshSearch = () => {
+    const last = lastSearch.current;
+    if (last) runSearch(last.target, last.area, last.mode);
   };
 
   /* ==============================
@@ -49,7 +63,10 @@ export default function Page() {
   const handleAreaChange = (value: string) => {
     setLookupArea(value);
     setSuggestions([]);
-    handleSearch(location, value);
+
+    const last = lastSearch.current;
+    const stillExact = last?.mode === "exact" && last.target === location;
+    runSearch(location, value, stillExact ? "exact" : "contains-rows");
   };
 
   /* ==============================
@@ -60,18 +77,22 @@ export default function Page() {
     const upper = value.toUpperCase();
     setLocation(upper);
 
+    const requestId = ++suggestionRequest.current;
+
     if (upper.length >= 2) {
-      const params = new URLSearchParams({ location: upper });
+      const params = new URLSearchParams({
+        location: upper,
+        match: "contains",
+        field: "pallet_id"
+      });
       if (lookupArea) params.set("area", lookupArea);
 
       const res = await fetch(`/api/preview?${params.toString()}`);
       const data = await res.json();
 
-      const uniqueLocations: string[] = Array.from(
-        new Set((data.rows || []).map((r: Row) => r.location))
-      );
-
-      setSuggestions(uniqueLocations);
+      // a slower, older keystroke must not overwrite the newest suggestions
+      if (requestId !== suggestionRequest.current) return;
+      setSuggestions(data.locations || []);
     } else {
       setSuggestions([]);
     }
@@ -88,7 +109,7 @@ export default function Page() {
       body: JSON.stringify({ id })
     });
 
-    handleSearch();
+    refreshSearch();
     loadOutstanding();
   };
 
@@ -102,7 +123,7 @@ export default function Page() {
 
     await fetch("/api/reset-stock-check", { method: "POST" });
 
-    handleSearch();
+    refreshSearch();
     loadOutstanding();
   };
 
@@ -128,12 +149,18 @@ export default function Page() {
   const exportOutstandingCSV = () => {
     if (!outstandingRows.length) return;
 
-    const headers = ["Location", "Item", "Size", "Qty"];
+    const headers = ["Location", "Pallet ID", "Item", "Size", "Qty"];
 
     const csvRows = [
       headers.join(","),
       ...outstandingRows.map((row) =>
-        [row.location, `"${row.item}"`, `"${row.size}"`, row.qty ?? 0].join(",")
+        [
+          row.location,
+          `"${row.pallet_id ?? ""}"`,
+          `"${row.item}"`,
+          `"${row.size}"`,
+          row.qty ?? 0
+        ].join(",")
       )
     ];
 
@@ -212,11 +239,11 @@ export default function Page() {
 
         <div className="autocomplete">
           <label className="field">
-            <span className="field-label">Location</span>
+            <span className="field-label">Pallet ID</span>
             <input
               value={location}
               onChange={(e) => handleLocationChange(e.target.value)}
-              placeholder="Enter location"
+              placeholder="Enter pallet ID"
               className="control"
               autoComplete="off"
             />
@@ -230,9 +257,10 @@ export default function Page() {
                 key={s}
                 className="suggestion"
                 onClick={() => {
+                  suggestionRequest.current++;
                   setLocation(s);
                   setSuggestions([]);
-                  handleSearch(s);
+                  runSearch(s, lookupArea, "exact");
                 }}
               >
                 {s}
@@ -336,7 +364,7 @@ export default function Page() {
           </label>
 
           <label className="field">
-            <span className="field-label">Location begins with</span>
+            <span className="field-label">Location is</span>
             <input
               placeholder="Optional location filter"
               value={filterLocation}
@@ -364,6 +392,7 @@ export default function Page() {
               <thead>
                 <tr>
                   <th>Location</th>
+                  <th>Pallet ID</th>
                   <th>Item</th>
                   <th>Size</th>
                   <th>Qty</th>
@@ -372,10 +401,15 @@ export default function Page() {
               <tbody>
                 {outstandingRows
                   .slice()
-                  .sort((a, b) => a.location.localeCompare(b.location))
+                  .sort(
+                    (a, b) =>
+                      a.location.localeCompare(b.location) ||
+                      (a.pallet_id ?? "").localeCompare(b.pallet_id ?? "")
+                  )
                   .map((row) => (
                     <tr key={row.id}>
                       <td>{row.location}</td>
+                      <td className="pallet-id">{row.pallet_id ?? "—"}</td>
                       <td style={getItemStyle(row.item)}>{row.item}</td>
                       <td>{row.size}</td>
                       <td>{row.qty?.toLocaleString()}</td>
