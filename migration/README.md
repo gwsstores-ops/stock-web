@@ -10,7 +10,8 @@ The old `stock` table is never modified by anything in this folder.
 | `04_read_views.sql` | `stocked_product` view for the drill-down dropdowns |
 | `05_line_code.sql` | Upgrade for databases that ran the first form of 01-03 (not needed on a fresh run) |
 | `06_write_functions.sql` | `move_pallet`, `relocate_pallet`, `mark_location_checked` (service key only) |
-| `99_rollback.sql` / `06_rollback_functions.sql` | Remove the new tables / functions |
+| `07_import_sync.sql` | Trigger on `stock`: rows imported into `stock` (CSV import) are also added to the new tables |
+| `99_rollback.sql` / `06_rollback_functions.sql` / `07_rollback_import_sync.sql` | Remove the new tables / functions / trigger |
 
 Needs `SUPABASE_SERVICE_ROLE_KEY` (server only, never `NEXT_PUBLIC_`) in `.env.local` and in the host's environment settings.
 
@@ -30,3 +31,13 @@ Do steps 2-3 when nobody is moving stock.
 Redeploy the previous version of the app. It reads and writes `stock`, which is untouched.
 Anything moved through the new app since the cutover exists only in the new tables;
 re-apply it by hand from `move_log` if needed.
+
+## Importing new stock after the cutover
+
+Keep importing the container CSV into the `stock` table in Supabase exactly as before. The trigger from
+`07_import_sync.sql` copies each imported row into the tables the app reads, in the same statement (if
+any row cannot be added the whole import fails and nothing is half-imported).
+
+`stock` is now only an inbox / record of imports. The app does not read it, and moves, relocations and
+stock checks are not written back to it. To see the real state, query the `stock_flat` view.
+Editing or deleting a row directly in `stock` does NOT change what the app shows.
