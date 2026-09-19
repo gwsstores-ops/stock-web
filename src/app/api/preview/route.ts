@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { escapeLike, exactIlike } from "@/lib/exactMatch";
 
 export async function GET(req: Request) {
   try {
@@ -18,8 +19,8 @@ export async function GET(req: Request) {
 
     const locationPattern = locationQuery
       ? matchMode === "contains"
-        ? `%${locationQuery}%`
-        : `${locationQuery}%`
+        ? `%${escapeLike(locationQuery)}%`
+        : `${escapeLike(locationQuery)}%`
       : null;
 
     if (matchMode === "contains") {
@@ -47,7 +48,7 @@ export async function GET(req: Request) {
       .select("id, location, pallet_id, area, item, size, qty, stock_check");
 
     if (locationQuery && matchMode === "exact") {
-      query = query.eq(field, locationQuery);
+      query = query.ilike(field, exactIlike(locationQuery));
     } else if (locationPattern) {
       query = query.ilike(field, locationPattern);
     }

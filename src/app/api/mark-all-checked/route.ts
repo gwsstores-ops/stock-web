@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { exactIlike } from "@/lib/exactMatch";
 
 export async function POST(req: Request) {
   const { location } = await req.json();
@@ -7,7 +8,7 @@ export async function POST(req: Request) {
   const { error } = await supabase
     .from("stock")
     .update({ stock_check: true })
-    .ilike("location", `${location}%`);
+    .ilike("location", exactIlike(location));
 
   if (error) {
     return NextResponse.json(

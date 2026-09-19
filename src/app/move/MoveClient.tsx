@@ -51,7 +51,7 @@ export default function MoveClient() {
 
     try {
       const res = await fetch(
-        `/api/preview?location=${encodeURIComponent(target)}&field=pallet_id`
+        `/api/preview?location=${encodeURIComponent(target)}&match=exact&field=pallet_id`
       );
       const data = await res.json();
 

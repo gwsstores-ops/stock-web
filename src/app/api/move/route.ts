@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { exactIlike } from "@/lib/exactMatch";
 
 type StockRow = {
   id: number;
@@ -25,11 +26,11 @@ export async function POST(req: Request) {
 
     const newArea = target === "GWS" ? "GWS-IN" : target;
 
-    // 1️⃣ Get rows that will be moved
+    // 1️⃣ Get rows that will be moved (exact match, never a prefix)
     const { data: rows, error: fetchError } = await supabase
       .from("stock")
       .select("id, location, pallet_id, item, size, qty, area")
-      .ilike(matchField, `${location}%`);
+      .ilike(matchField, exactIlike(location));
 
     if (fetchError) throw fetchError;
     if (!rows || rows.length === 0) {
@@ -57,11 +58,11 @@ export async function POST(req: Request) {
 
     if (logError) throw logError;
 
-    // 3️⃣ Update stock table
+    // 3️⃣ Update exactly the rows that were logged
     const { error: updateError } = await supabase
       .from("stock")
       .update({ area: newArea })
-      .ilike(matchField, `${location}%`);
+      .in("id", rows.map((row: StockRow) => row.id));
 
     if (updateError) throw updateError;
 

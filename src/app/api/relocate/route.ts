@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { exactIlike } from "@/lib/exactMatch";
 
 export async function POST(req: Request) {
   try {
@@ -12,10 +13,11 @@ export async function POST(req: Request) {
       );
     }
 
+    // Exact pallet match, never a prefix: `E3` must not also relocate `E35`.
     const { data: rows, error: fetchError } = await supabase
       .from("stock")
       .select("id")
-      .ilike("pallet_id", `${location}%`);
+      .ilike("pallet_id", exactIlike(location));
 
     if (fetchError) throw fetchError;
     if (!rows || rows.length === 0) {
@@ -28,7 +30,7 @@ export async function POST(req: Request) {
     const { error: updateError } = await supabase
       .from("stock")
       .update({ location: newLocation })
-      .ilike("pallet_id", `${location}%`);
+      .in("id", rows.map((row) => row.id));
 
     if (updateError) throw updateError;
 
