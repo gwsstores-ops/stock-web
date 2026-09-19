@@ -10,7 +10,7 @@ type CountRow = {
 export async function GET() {
   const { data, error } = await fetchAllPages<CountRow>((from, to) =>
     supabase
-      .from("stock")
+      .from("stock_flat")
       .select("area, pallet_id")
       .in("area", ["W3", "W4"])
       .not("pallet_id", "is", null)

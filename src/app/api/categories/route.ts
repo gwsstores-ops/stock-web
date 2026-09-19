@@ -7,9 +7,8 @@ export async function GET() {
   const { data, error } = await cached("categories", 60_000, () =>
     fetchAllPages<{ cat: string | null }>((from, to) =>
       supabase
-        .from("stock")
+        .from("stocked_product")
         .select("cat")
-        .in("area", ["GWS", "W3", "W4"])
         .not("cat", "is", null)
         .order("id", { ascending: true })
         .range(from, to)

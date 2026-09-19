@@ -26,7 +26,7 @@ export async function GET(req: Request) {
 
     const { data, error } = await fetchAllPages<SearchRow>((from, to) =>
       supabase
-        .from("stock")
+        .from("stock_flat")
         .select("id, location, pallet_id, area, item, size, qty")
         .eq("code", code)
         .in("area", ["GWS", "W3", "W4"])

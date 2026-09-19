@@ -11,7 +11,7 @@ export async function GET() {
   const { data, error } = await cached("container-vocab", 300_000, () =>
     fetchAllPages<{ cat: string | null; item: string | null }>((from, to) =>
       supabase
-        .from("stock")
+        .from("product")
         .select("cat, item")
         .not("cat", "is", null)
         .not("item", "is", null)

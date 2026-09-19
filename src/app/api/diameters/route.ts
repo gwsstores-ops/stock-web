@@ -17,12 +17,11 @@ export async function GET(request: Request) {
         diam_display: string | null;
       }>((from, to) =>
         supabase
-          .from("stock")
+          .from("stocked_product")
           .select("diam_value, diam_display")
           .eq("cat", cat)
           .eq("item", item)
-          .in("area", ["GWS", "W3", "W4"])
-          .order("id", { ascending: true })
+          .order("first_line_id", { ascending: true })
           .range(from, to)
       )
   );

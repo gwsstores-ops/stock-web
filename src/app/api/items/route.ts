@@ -14,10 +14,9 @@ export async function GET(req: Request) {
   const { data, error } = await cached(`items:${cat}`, 60_000, () =>
     fetchAllPages<{ item: string | null }>((from, to) =>
       supabase
-        .from("stock")
+        .from("stocked_product")
         .select("item")
         .eq("cat", cat)
-        .in("area", ["GWS", "W3", "W4"])
         .not("item", "is", null)
         .order("id", { ascending: true })
         .range(from, to)
