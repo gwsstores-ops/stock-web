@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
-import { exactIlike } from "@/lib/exactMatch";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST(req: Request) {
   const { location } = await req.json();
 
-  const { error } = await supabase
-    .from("stock")
-    .update({ stock_check: true })
-    .ilike("location", exactIlike(location));
+  const { error } = await supabaseAdmin().rpc("mark_location_checked", {
+    p_location: location
+  });
 
   if (error) {
     return NextResponse.json(

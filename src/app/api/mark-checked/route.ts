@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST(req: Request) {
   const { id } = await req.json();
 
-  const { error } = await supabase
-    .from("stock")
+  const { error } = await supabaseAdmin()
+    .from("stock_line")
     .update({ stock_check: true })
     .eq("id", id);
 

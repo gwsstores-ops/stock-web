@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
-import { exactIlike } from "@/lib/exactMatch";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST(req: Request) {
   try {
@@ -14,28 +13,21 @@ export async function POST(req: Request) {
     }
 
     // Exact pallet match, never a prefix: `E3` must not also relocate `E35`.
-    const { data: rows, error: fetchError } = await supabase
-      .from("stock")
-      .select("id")
-      .ilike("pallet_id", exactIlike(location));
+    const { data: updated, error } = await supabaseAdmin().rpc("relocate_pallet", {
+      p_value: location,
+      p_new_location: newLocation
+    });
 
-    if (fetchError) throw fetchError;
-    if (!rows || rows.length === 0) {
+    if (error) throw new Error(error.message);
+    if (!updated) {
       return NextResponse.json(
         { error: "No matching stock rows were found" },
         { status: 404 }
       );
     }
 
-    const { error: updateError } = await supabase
-      .from("stock")
-      .update({ location: newLocation })
-      .in("id", rows.map((row) => row.id));
-
-    if (updateError) throw updateError;
-
     return NextResponse.json({
-      message: `Updated ${rows.length} row(s)`
+      message: `Updated ${updated} row(s)`
     });
 
   } catch (err: unknown) {

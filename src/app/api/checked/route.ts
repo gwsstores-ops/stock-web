@@ -7,7 +7,7 @@ export async function GET(req: Request) {
   const location = searchParams.get("location");
 
   let query = supabase
-    .from("stock")
+    .from("stock_flat")
     .select("id, location, area, item, size, qty")
     .or("stock_check.is.null,stock_check.eq.false");
 

@@ -14,7 +14,7 @@ export async function GET(req: Request) {
   }
 
   const { data, error } = await supabase
-  .from("stock")
+  .from("stock_flat")
   .select("*")
   .eq("cat", cat)
   .eq("item", item)

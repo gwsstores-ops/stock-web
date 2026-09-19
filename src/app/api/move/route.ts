@@ -1,16 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
-import { exactIlike } from "@/lib/exactMatch";
-
-type StockRow = {
-  id: number;
-  location: string | null;
-  pallet_id: string | null;
-  item: string;
-  size: string;
-  qty: number | null;
-  area: string;
-};
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST(req: Request) {
   try {
@@ -24,50 +13,23 @@ export async function POST(req: Request) {
       );
     }
 
-    const newArea = target === "GWS" ? "GWS-IN" : target;
+    // One atomic database call: logs to move_log and moves the pallet (exact match).
+    const { data: moved, error } = await supabaseAdmin().rpc("move_pallet", {
+      p_value: location,
+      p_target: target,
+      p_field: matchField
+    });
 
-    // 1️⃣ Get rows that will be moved (exact match, never a prefix)
-    const { data: rows, error: fetchError } = await supabase
-      .from("stock")
-      .select("id, location, pallet_id, item, size, qty, area")
-      .ilike(matchField, exactIlike(location));
-
-    if (fetchError) throw fetchError;
-    if (!rows || rows.length === 0) {
+    if (error) throw new Error(error.message);
+    if (!moved) {
       return NextResponse.json(
         { error: "No matching stock rows were found" },
         { status: 404 }
       );
     }
 
-    // 2️⃣ Insert audit entries (one per row)
-    const logEntries = rows.map((row: StockRow) => ({
-      stock_id: row.id,
-      location: row.location,
-      pallet_id: row.pallet_id,
-      item: row.item,
-      size: row.size,
-      qty: row.qty,
-      old_area: row.area,
-      new_area: newArea
-    }));
-
-    const { error: logError } = await supabase
-      .from("move_log")
-      .insert(logEntries);
-
-    if (logError) throw logError;
-
-    // 3️⃣ Update exactly the rows that were logged
-    const { error: updateError } = await supabase
-      .from("stock")
-      .update({ area: newArea })
-      .in("id", rows.map((row: StockRow) => row.id));
-
-    if (updateError) throw updateError;
-
     return NextResponse.json({
-      message: `Moved ${rows.length} row(s)`
+      message: `Moved ${moved} row(s)`
     });
 
   } catch (err: unknown) {

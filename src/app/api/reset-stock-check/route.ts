@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST() {
-  const { error } = await supabase
-    .from("stock")
+  const { error } = await supabaseAdmin()
+    .from("stock_line")
     .update({ stock_check: false })
-    .neq("id", 0); // updates all rows safely
+    .gt("id", 0); // updates all rows safely
 
   if (error) {
     return NextResponse.json(

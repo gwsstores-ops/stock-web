@@ -24,7 +24,7 @@ export async function GET(req: Request) {
       : null;
 
     if (matchMode === "contains") {
-      let query = supabase.from("stock").select(field);
+      let query = supabase.from("stock_flat").select(field);
       if (locationPattern) query = query.ilike(field, locationPattern);
       if (area) query = query.eq("area", area);
 
@@ -44,7 +44,7 @@ export async function GET(req: Request) {
     }
 
     let query = supabase
-      .from("stock")
+      .from("stock_flat")
       .select("id, location, pallet_id, area, item, size, qty, stock_check");
 
     if (locationQuery && matchMode === "exact") {
