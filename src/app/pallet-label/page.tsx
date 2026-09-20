@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AppHeader from "@/components/AppHeader";
-import { buildLabelDocx, formatLabelDate, MAX_SIZES } from "@/lib/labelDoc";
+import { buildLabelPdf, formatLabelDate, MAX_SIZES } from "@/lib/labelPdf";
 
 export default function PalletLabelPage() {
   const [sizeCount, setSizeCount] = useState(1);
@@ -59,7 +59,7 @@ export default function PalletLabelPage() {
 
     try {
       const now = new Date();
-      const blob = await buildLabelDocx({
+      const blob = await buildLabelPdf({
         item,
         sizes: activeSizes,
         palletId,
@@ -71,7 +71,7 @@ export default function PalletLabelPage() {
       const link = document.createElement("a");
 
       link.href = url;
-      link.download = `label_${safeId}_${formatLabelDate(now)}.docx`;
+      link.download = `label_${safeId}_${formatLabelDate(now)}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -173,7 +173,7 @@ export default function PalletLabelPage() {
           className="button button-primary button-block"
           style={{ marginTop: 16 }}
         >
-          {building ? "Making label…" : "Download .docx"}
+          {building ? "Making label…" : "Download PDF"}
         </button>
       </section>
     </main>
