@@ -12,6 +12,11 @@ const tools = [
     href: "/container-labels",
     label: "Container Labels",
     icon: "/icons/container.png"
+  },
+  {
+    href: "/pallet-label",
+    label: "Pallet Label",
+    icon: "/icons/label-icon.svg"
   }
 ];
 
