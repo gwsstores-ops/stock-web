@@ -2,8 +2,9 @@
  * Draws the A4 pallet label as a PDF in the browser.
  *
  * Layout follows templates/label-template.docx: narrow margins, the item in
- * large underlined bold capitals at the top, then one large bold line per size
- * (left aligned, as big as the page allows). The QR code, pallet ID and today's
+ * underlined bold capitals at the top (as large as fits the line, with a light
+ * grey highlight when it contains HDG), then one bold line per size (left
+ * aligned, as big as the page allows but never larger than the item). The QR code, pallet ID and today's
  * date (dd-mm-yy) are pinned to the bottom of the page, with blank space between.
  * Text is measured, so a long item or size shrinks to stay on one line.
  */
@@ -23,7 +24,8 @@ const PAGE_H = 841.89;
 const MARGIN = 21.6;
 const CONTENT_W = PAGE_W - MARGIN * 2;
 
-const ITEM_PT = 100;
+// The item grows to fill the line, up to this font size
+const ITEM_MAX_PT = 200;
 const PALLET_PT = 30;
 const DATE_PT = 66;
 
@@ -32,6 +34,11 @@ const SIZE_MAX_PT = 200;
 const SIZE_MIN_PT = 20;
 
 const QR_PT = 110;
+
+// Light grey highlight behind items that contain HDG (hot-dip galvanised)
+const HIGHLIGHT_RGB: [number, number, number] = [217, 217, 217];
+const HIGHLIGHT_PAD_PT = 6;
+const isHdg = (item: string) => item.includes("HDG");
 
 // Height of a line of text as a fraction of its font size
 const LINE_EM = 1.15;
@@ -79,7 +86,14 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
     return width > CONTENT_W ? Math.max(20, (max * CONTENT_W) / width) : max;
   };
 
-  const itemPt = fit(item, ITEM_PT);
+  // Largest font, up to `max`, that fills the line: like `fit`, but short text grows too
+  const fill = (text: string, max: number) => {
+    doc.setFontSize(100);
+    const width = doc.getTextWidth(text);
+    return Math.max(20, Math.min(max, (100 * CONTENT_W) / width));
+  };
+
+  const itemPt = fill(item, ITEM_MAX_PT);
   const palletPt = fit(palletId, PALLET_PT);
 
   // QR code, pallet ID and date sit together at the bottom of the page
@@ -91,7 +105,7 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
   const sizesRoom = bottomTop - GAP_PT - sizesTop;
   const heightCapPt = sizesRoom / sizes.length / LINE_EM;
   const sizePts = sizes.map((s) =>
-    Math.max(SIZE_MIN_PT, Math.min(fit(s, SIZE_MAX_PT), heightCapPt))
+    Math.max(SIZE_MIN_PT, Math.min(fit(s, SIZE_MAX_PT), heightCapPt, itemPt))
   );
 
   let y = MARGIN;
@@ -100,11 +114,26 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
     text: string,
     pt: number,
     align: "left" | "center",
-    underline = false
+    underline = false,
+    highlight = false
   ) => {
     doc.setFontSize(pt);
     const x = align === "center" ? PAGE_W / 2 : MARGIN;
     const baseline = y + pt * BASELINE_EM;
+
+    if (highlight) {
+      const width = doc.getTextWidth(text);
+      const left = align === "center" ? x - width / 2 : x;
+      doc.setFillColor(...HIGHLIGHT_RGB);
+      doc.rect(
+        left - HIGHLIGHT_PAD_PT,
+        y,
+        width + HIGHLIGHT_PAD_PT * 2,
+        pt * LINE_EM,
+        "F"
+      );
+    }
+
     doc.text(text, x, baseline, { align });
 
     if (underline) {
@@ -117,7 +146,7 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
     y += pt * LINE_EM;
   };
 
-  drawLine(item, itemPt, "center", true);
+  drawLine(item, itemPt, "center", true, isHdg(item));
 
   y = sizesTop;
   sizes.forEach((size, i) => drawLine(size, sizePts[i], "left"));
