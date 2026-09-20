@@ -2,8 +2,9 @@
  * Draws the A4 pallet label as a PDF in the browser.
  *
  * Layout follows templates/label-template.docx: narrow margins, the item in
- * large underlined bold capitals, one large bold line per size, a QR code and
- * the pallet ID at the left, and today's date (dd-mm-yy) centred at the bottom.
+ * large underlined bold capitals at the top, then one large bold line per size
+ * (left aligned, as big as the page allows). The QR code, pallet ID and today's
+ * date (dd-mm-yy) are pinned to the bottom of the page, with blank space between.
  * Text is measured, so a long item or size shrinks to stay on one line.
  */
 
@@ -23,13 +24,14 @@ const MARGIN = 21.6;
 const CONTENT_W = PAGE_W - MARGIN * 2;
 
 const ITEM_PT = 100;
-const SIZE_PT = 85;
 const PALLET_PT = 30;
 const DATE_PT = 66;
 
-// Size of the QR code, and the smallest it may shrink to on a crowded page
+// Sizes grow to fill the space left, up to this font size
+const SIZE_MAX_PT = 200;
+const SIZE_MIN_PT = 20;
+
 const QR_PT = 110;
-const QR_MIN_PT = 60;
 
 // Height of a line of text as a fraction of its font size
 const LINE_EM = 1.15;
@@ -78,14 +80,19 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
   };
 
   const itemPt = fit(item, ITEM_PT);
-  const sizePts = sizes.map((s) => fit(s, SIZE_PT));
   const palletPt = fit(palletId, PALLET_PT);
 
-  const heightAbove =
-    itemPt * LINE_EM + sizePts.reduce((sum, pt) => sum + pt * LINE_EM, 0) + GAP_PT;
-  const heightBelow = palletPt * LINE_EM + GAP_PT + DATE_PT * LINE_EM;
-  const room = PAGE_H - MARGIN * 2 - heightAbove - heightBelow;
-  const qrPt = Math.max(QR_MIN_PT, Math.min(QR_PT, room));
+  // QR code, pallet ID and date sit together at the bottom of the page
+  const bottomHeight = QR_PT + palletPt * LINE_EM + GAP_PT + DATE_PT * LINE_EM;
+  const bottomTop = PAGE_H - MARGIN - bottomHeight;
+
+  // Space for the size lines: between the item and the bottom block
+  const sizesTop = MARGIN + itemPt * LINE_EM + GAP_PT;
+  const sizesRoom = bottomTop - GAP_PT - sizesTop;
+  const heightCapPt = sizesRoom / sizes.length / LINE_EM;
+  const sizePts = sizes.map((s) =>
+    Math.max(SIZE_MIN_PT, Math.min(fit(s, SIZE_MAX_PT), heightCapPt))
+  );
 
   let y = MARGIN;
 
@@ -111,17 +118,19 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
   };
 
   drawLine(item, itemPt, "center", true);
-  sizes.forEach((size, i) => drawLine(size, sizePts[i], "center"));
 
-  y += GAP_PT;
+  y = sizesTop;
+  sizes.forEach((size, i) => drawLine(size, sizePts[i], "left"));
+
+  y = bottomTop;
 
   const qr = await QRCode.toDataURL(palletId, {
     margin: 1,
     width: 300,
     errorCorrectionLevel: "M"
   });
-  doc.addImage(qr, "PNG", MARGIN, y, qrPt, qrPt);
-  y += qrPt;
+  doc.addImage(qr, "PNG", MARGIN, y, QR_PT, QR_PT);
+  y += QR_PT;
 
   drawLine(palletId, palletPt, "left");
 
