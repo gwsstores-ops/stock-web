@@ -2,8 +2,8 @@
  * Draws the A4 pallet label as a PDF in the browser.
  *
  * Layout follows templates/label-template.docx: narrow margins, the item in
- * underlined bold capitals at the top (as large as fits the line, with a light
- * grey highlight when it contains HDG), then one bold line per size (left
+ * underlined bold capitals at the top (as large as fits the line, highlighted
+ * grey when it contains HDG, or black with white text when it ends in SC), then one bold line per size (left
  * aligned, as big as the page allows but never larger than the item). The QR code, pallet ID and today's
  * date (dd-mm-yy) are pinned to the bottom of the page, with blank space between.
  * Text is measured, so a long item or size shrinks to stay on one line.
@@ -35,10 +35,20 @@ const SIZE_MIN_PT = 20;
 
 const QR_PT = 110;
 
-// Light grey highlight behind items that contain HDG (hot-dip galvanised)
-const HIGHLIGHT_RGB: [number, number, number] = [217, 217, 217];
+type Rgb = [number, number, number];
+type Highlight = { fill: Rgb; text: Rgb };
+
 const HIGHLIGHT_PAD_PT = 6;
-const isHdg = (item: string) => item.includes("HDG");
+const GREY_HIGHLIGHT: Highlight = { fill: [185, 185, 185], text: [0, 0, 0] };
+const BLACK_HIGHLIGHT: Highlight = { fill: [0, 0, 0], text: [255, 255, 255] };
+
+// Items ending in SC: black with white text. Items containing HDG: grey.
+// SC wins when an item is both, as it is the more specific rule.
+const highlightFor = (item: string): Highlight | null => {
+  if (/\bSC$/.test(item)) return BLACK_HIGHLIGHT;
+  if (item.includes("HDG")) return GREY_HIGHLIGHT;
+  return null;
+};
 
 // Height of a line of text as a fraction of its font size
 const LINE_EM = 1.15;
@@ -115,7 +125,7 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
     pt: number,
     align: "left" | "center",
     underline = false,
-    highlight = false
+    highlight: Highlight | null = null
   ) => {
     doc.setFontSize(pt);
     const x = align === "center" ? PAGE_W / 2 : MARGIN;
@@ -124,7 +134,7 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
     if (highlight) {
       const width = doc.getTextWidth(text);
       const left = align === "center" ? x - width / 2 : x;
-      doc.setFillColor(...HIGHLIGHT_RGB);
+      doc.setFillColor(...highlight.fill);
       doc.rect(
         left - HIGHLIGHT_PAD_PT,
         y,
@@ -134,6 +144,9 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
       );
     }
 
+    const textColor = highlight?.text ?? [0, 0, 0];
+    doc.setTextColor(...textColor);
+    doc.setDrawColor(...textColor);
     doc.text(text, x, baseline, { align });
 
     if (underline) {
@@ -143,10 +156,13 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
       doc.line(left, baseline + pt * 0.09, left + width, baseline + pt * 0.09);
     }
 
+    doc.setTextColor(0, 0, 0);
+    doc.setDrawColor(0, 0, 0);
+
     y += pt * LINE_EM;
   };
 
-  drawLine(item, itemPt, "center", true, isHdg(item));
+  drawLine(item, itemPt, "center", true, highlightFor(item));
 
   y = sizesTop;
   sizes.forEach((size, i) => drawLine(size, sizePts[i], "left"));
