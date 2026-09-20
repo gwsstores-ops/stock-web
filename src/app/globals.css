@@ -650,6 +650,29 @@ select.control,
   border-radius: 14px;
 }
 
+/* QR Move: while scanning, put the camera at the top so no scrolling is needed */
+.scanner-panel.is-scanning {
+  display: flex;
+  flex-direction: column;
+}
+
+.scanner-panel.is-scanning #qr-reader {
+  order: -1;
+  margin: 0 0 14px;
+}
+
+.scanner-panel.is-scanning .scanner-icon {
+  display: none;
+}
+
+.scanner-panel.is-scanning .scanner-title {
+  margin-bottom: 12px;
+}
+
+.scanner-panel:not(.is-scanning) #qr-reader {
+  display: none;
+}
+
 .not-in-stock,
 .search-error {
   color: #a51620;
