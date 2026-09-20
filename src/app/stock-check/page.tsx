@@ -113,6 +113,19 @@ export default function Page() {
     loadOutstanding();
   };
 
+  const markOutstandingChecked = async (id: number) => {
+    const res = await fetch("/api/mark-checked", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id })
+    });
+
+    if (!res.ok) return;
+
+    setOutstandingRows((prev) => prev.filter((row) => row.id !== id));
+    refreshSearch();
+  };
+
   /* ==============================
      RESET ALL STOCK CHECKS
   ============================== */
@@ -396,6 +409,7 @@ export default function Page() {
                   <th>Item</th>
                   <th>Size</th>
                   <th>Qty</th>
+                  <th>Check</th>
                 </tr>
               </thead>
               <tbody>
@@ -413,6 +427,15 @@ export default function Page() {
                       <td style={getItemStyle(row.item)}>{row.item}</td>
                       <td>{row.size}</td>
                       <td>{row.qty?.toLocaleString()}</td>
+                      <td>
+                        <input
+                          type="checkbox"
+                          aria-label={`Mark ${row.location} ${row.item} checked`}
+                          checked={false}
+                          onChange={() => markOutstandingChecked(row.id)}
+                          className="check-box"
+                        />
+                      </td>
                     </tr>
                   ))}
               </tbody>
