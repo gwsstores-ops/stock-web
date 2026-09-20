@@ -17,6 +17,11 @@ const tools = [
     href: "/pallet-label",
     label: "Pallet Label",
     icon: "/icons/label-icon.svg"
+  },
+  {
+    href: "/cert-combine",
+    label: "Cert Combine",
+    icon: "/icons/cert-combine.svg"
   }
 ];
 
