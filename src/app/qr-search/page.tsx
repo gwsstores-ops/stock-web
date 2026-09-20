@@ -13,6 +13,7 @@ type SearchStatus = "idle" | "searching" | "found" | "not-found" | "error";
 export default function QrSearchPage() {
   const qrRef = useRef<Html5Qrcode | null>(null);
   const handlingScanRef = useRef(false);
+  const startingRef = useRef(false);
   const [scanning, setScanning] = useState(false);
   const [status, setStatus] = useState<SearchStatus>("idle");
   const [rows, setRows] = useState<SearchResultRow[]>([]);
@@ -64,18 +65,32 @@ export default function QrSearchPage() {
   };
 
   const startScanner = async () => {
-    try {
-      setRows([]);
-      setStatus("idle");
-      handlingScanRef.current = false;
+    if (startingRef.current || qrRef.current) return;
+    startingRef.current = true;
 
+    setRows([]);
+    setStatus("idle");
+    handlingScanRef.current = false;
+
+    // The reader is hidden until scanning, and the camera needs it laid out to size the video.
+    setScanning(true);
+    window.scrollTo({ top: 0 });
+
+    try {
       const { Html5Qrcode } = await import("html5-qrcode");
       const qr = new Html5Qrcode("qr-search-reader");
       qrRef.current = qr;
 
       await qr.start(
         { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
+        {
+          fps: 10,
+          // Scan box scales down on small screens instead of overflowing the video
+          qrbox: (width: number, height: number) => {
+            const size = Math.floor(Math.min(250, Math.min(width, height) * 0.8));
+            return { width: size, height: size };
+          }
+        },
         (decodedText: string) => {
           void searchCode(decodedText);
         },
@@ -83,12 +98,13 @@ export default function QrSearchPage() {
           // Decode errors are expected while the camera is scanning.
         }
       );
-
-      setScanning(true);
     } catch (error) {
       console.error("Scanner failed:", error);
+      qrRef.current = null;
       setStatus("error");
       setScanning(false);
+    } finally {
+      startingRef.current = false;
     }
   };
 
@@ -111,7 +127,7 @@ export default function QrSearchPage() {
     <main className="page-shell">
       <AppHeader title="QR Search" />
 
-      <section className="panel scanner-panel">
+      <section className={`panel scanner-panel${scanning ? " is-scanning" : ""}`}>
         <div className="scanner-icon">
           <Image src="/qr-icon.png" alt="" width={38} height={38} />
         </div>

@@ -650,13 +650,14 @@ select.control,
   border-radius: 14px;
 }
 
-/* QR Move: while scanning, put the camera at the top so no scrolling is needed */
+/* QR Move / QR Search: while scanning, put the camera at the top so no scrolling is needed */
 .scanner-panel.is-scanning {
   display: flex;
   flex-direction: column;
 }
 
-.scanner-panel.is-scanning #qr-reader {
+.scanner-panel.is-scanning #qr-reader,
+.scanner-panel.is-scanning #qr-search-reader {
   order: -1;
   margin: 0 0 14px;
 }
@@ -669,7 +670,8 @@ select.control,
   margin-bottom: 12px;
 }
 
-.scanner-panel:not(.is-scanning) #qr-reader {
+.scanner-panel:not(.is-scanning) #qr-reader,
+.scanner-panel:not(.is-scanning) #qr-search-reader {
   display: none;
 }
 
