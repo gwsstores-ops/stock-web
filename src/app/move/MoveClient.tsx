@@ -27,6 +27,8 @@ export default function MoveClient() {
   const [locationModalArea, setLocationModalArea] = useState<string | null>(null);
   const [newLocationValue, setNewLocationValue] = useState("");
   const [relocating, setRelocating] = useState(false);
+  const [bayOptions, setBayOptions] = useState<string[]>([]);
+  const bayRequestRef = useRef(0);
 
   const searchParams = useSearchParams();
   const suggestionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -130,7 +132,8 @@ export default function MoveClient() {
     if (!previewRows.length || loading) return;
 
     if (isSameArea(targetArea)) {
-      setNewLocationValue(previewRows[0]?.location ?? "");
+      setNewLocationValue("");
+      setBayOptions([]);
       setLocationModalArea(targetArea);
       return;
     }
@@ -167,6 +170,7 @@ export default function MoveClient() {
       setPalletId("");
       setPreviewRows([]);
       setSuggestions([]);
+      setBayOptions([]);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Location update failed";
       const area = locationModalArea ?? "GWS";
@@ -174,6 +178,37 @@ export default function MoveClient() {
       setResultModal({ area, message: `Location update failed: ${message}` });
     } finally {
       setRelocating(false);
+    }
+  };
+
+  /* ==============================
+     RELOCATE AUTOCOMPLETE (bays in the pallet's own area)
+  ============================== */
+
+  const handleNewLocationChange = async (value: string) => {
+    const upper = value.toUpperCase();
+    setNewLocationValue(upper);
+
+    const requestId = ++bayRequestRef.current;
+    const query = upper.trim();
+    const area = previewRows[0]?.area;
+
+    if (!query || !area) {
+      setBayOptions([]);
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `/api/bays?area=${encodeURIComponent(area)}&q=${encodeURIComponent(query)}`
+      );
+      const data = await res.json();
+
+      // a slower, older keystroke must not overwrite the newest suggestions
+      if (requestId !== bayRequestRef.current) return;
+      setBayOptions(res.ok ? data.labels || [] : []);
+    } catch {
+      if (requestId === bayRequestRef.current) setBayOptions([]);
     }
   };
 
@@ -375,18 +410,39 @@ export default function MoveClient() {
           <div className="modal-panel move-modal" onClick={(e) => e.stopPropagation()}>
             <p className="section-kicker">Same area</p>
             <h2>Move location</h2>
-            <input
-              type="text"
-              className="control"
-              value={newLocationValue}
-              onChange={(e) => setNewLocationValue(e.target.value.toUpperCase())}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleRelocate();
-              }}
-              placeholder="New location"
-              autoComplete="off"
-              autoFocus
-            />
+            <div className="autocomplete">
+              <input
+                type="text"
+                className="control"
+                value={newLocationValue}
+                onChange={(e) => handleNewLocationChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleRelocate();
+                }}
+                placeholder="New location"
+                autoComplete="off"
+                autoFocus
+              />
+
+              {bayOptions.length > 0 && (
+                <div className="suggestions" role="listbox">
+                  {bayOptions.map((label) => (
+                    <button
+                      type="button"
+                      key={label}
+                      className="suggestion"
+                      onClick={() => {
+                        bayRequestRef.current++;
+                        setNewLocationValue(label);
+                        setBayOptions([]);
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               type="button"
               className="button button-primary button-block"
