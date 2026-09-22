@@ -45,7 +45,7 @@ export async function GET(req: Request) {
 
     let query = supabase
       .from("stock_flat")
-      .select("id, location, pallet_id, area, item, size, qty, stock_check");
+      .select("id, location, pallet_id, area, item, size, qty, stock_check, needs_label");
 
     if (locationQuery && matchMode === "exact") {
       query = query.ilike(field, exactIlike(locationQuery));

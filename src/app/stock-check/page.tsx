@@ -12,6 +12,7 @@ type Row = {
   size: string;
   qty: number | null;
   stock_check: boolean | null;
+  needs_label?: boolean | null;
 };
 
 export default function Page() {
@@ -23,6 +24,8 @@ export default function Page() {
   const [outstandingRows, setOutstandingRows] = useState<Row[]>([]);
   const [filterArea, setFilterArea] = useState("");
   const [filterLocation, setFilterLocation] = useState("");
+
+  const [newLabelRows, setNewLabelRows] = useState<Row[] | null>(null);
 
   /* ==============================
      SEARCH (by pallet ID)
@@ -124,6 +127,78 @@ export default function Page() {
 
     setOutstandingRows((prev) => prev.filter((row) => row.id !== id));
     refreshSearch();
+  };
+
+  /* ==============================
+     NEW LABEL FLAG
+  ============================== */
+
+  const setNewLabelFlag = async (id: number, value: boolean) => {
+    const res = await fetch("/api/mark-new-label", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, value })
+    });
+
+    if (!res.ok) return;
+
+    setRows((prev) =>
+      prev.map((row) => (row.id === id ? { ...row, needs_label: value } : row))
+    );
+
+    if (newLabelRows) {
+      if (value) {
+        loadNewLabels();
+      } else {
+        setNewLabelRows((prev) => prev?.filter((row) => row.id !== id) ?? prev);
+      }
+    }
+  };
+
+  const loadNewLabels = async () => {
+    const res = await fetch("/api/new-labels");
+    const data = await res.json();
+    setNewLabelRows(data.rows || []);
+  };
+
+  const clearNewLabel = async (id: number) => {
+    await setNewLabelFlag(id, false);
+  };
+
+  const exportNewLabelsCSV = () => {
+    if (!newLabelRows || newLabelRows.length === 0) return;
+
+    const headers = ["Location", "Pallet ID", "Item", "Size", "Qty"];
+
+    const csvRows = [
+      headers.join(","),
+      ...newLabelRows.map((row) =>
+        [
+          row.location,
+          `"${row.pallet_id ?? ""}"`,
+          `"${row.item}"`,
+          `"${row.size}"`,
+          row.qty ?? 0
+        ].join(",")
+      )
+    ];
+
+    const blob = new Blob([csvRows.join("\n")], {
+      type: "text/csv;charset=utf-8;"
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.setAttribute(
+      "download",
+      `new_labels_${new Date().toISOString().slice(0, 10)}.csv`
+    );
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   /* ==============================
@@ -304,6 +379,7 @@ export default function Page() {
                   <th>Size</th>
                   <th>Qty</th>
                   <th>Checked</th>
+                  <th>New Label</th>
                 </tr>
               </thead>
               <tbody>
@@ -325,6 +401,15 @@ export default function Page() {
                         className="check-box"
                       />
                     </td>
+                    <td>
+                      <input
+                        type="checkbox"
+                        aria-label={`Flag pallet ${row.pallet_id ?? row.id} for a new label`}
+                        checked={row.needs_label === true}
+                        onChange={(e) => setNewLabelFlag(row.id, e.target.checked)}
+                        className="check-box"
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -332,6 +417,78 @@ export default function Page() {
           </div>
         </section>
       )}
+
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="section-kicker">New Label</p>
+            <h2>Labels to print</h2>
+          </div>
+        </div>
+
+        <div className="outstanding-actions">
+          <button
+            type="button"
+            onClick={loadNewLabels}
+            className="button button-primary"
+          >
+            Show new labels required
+          </button>
+
+          {newLabelRows && newLabelRows.length > 0 && (
+            <button
+              type="button"
+              onClick={exportNewLabelsCSV}
+              className="button button-secondary"
+            >
+              Export CSV
+            </button>
+          )}
+        </div>
+
+        {newLabelRows && (
+          <div className="table-wrap" style={{ marginTop: 16 }}>
+            {newLabelRows.length === 0 ? (
+              <div className="empty-state">No labels currently flagged.</div>
+            ) : (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Location</th>
+                    <th>Pallet ID</th>
+                    <th>Item</th>
+                    <th>Size</th>
+                    <th>Qty</th>
+                    <th>Clear</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {newLabelRows.map((row) => (
+                    <tr key={row.id}>
+                      <td>{row.location}</td>
+                      <td className="pallet-id">{row.pallet_id ?? "—"}</td>
+                      <td style={getItemStyle(row.item)}>{row.item}</td>
+                      <td>
+                        <span className={getSizeBadgeClass(row.size)}>{row.size}</span>
+                      </td>
+                      <td>{row.qty?.toLocaleString() ?? 0}</td>
+                      <td>
+                        <button
+                          type="button"
+                          onClick={() => clearNewLabel(row.id)}
+                          className="button button-secondary"
+                        >
+                          Clear
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+      </section>
 
       <section className="panel">
         <div className="section-heading">

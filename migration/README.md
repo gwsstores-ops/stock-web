@@ -11,6 +11,7 @@ The old `stock` table is never modified by anything in this folder.
 | `05_line_code.sql` | Upgrade for databases that ran the first form of 01-03 (not needed on a fresh run) |
 | `06_write_functions.sql` | `move_pallet`, `relocate_pallet`, `mark_location_checked` (service key only) |
 | `07_import_sync.sql` | Trigger on `stock`: rows imported into `stock` (CSV import) are also added to the new tables |
+| `08_needs_label.sql` | Adds `stock_line.needs_label` (the "New Label" flag) and exposes it on `stock_flat` |
 | `99_rollback.sql` / `06_rollback_functions.sql` / `07_rollback_import_sync.sql` | Remove the new tables / functions / trigger |
 
 Needs `SUPABASE_SERVICE_ROLE_KEY` (server only, never `NEXT_PUBLIC_`) in `.env.local` and in the host's environment settings.
