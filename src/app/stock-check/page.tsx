@@ -145,6 +145,9 @@ export default function Page() {
     setRows((prev) =>
       prev.map((row) => (row.id === id ? { ...row, needs_label: value } : row))
     );
+    setOutstandingRows((prev) =>
+      prev.map((row) => (row.id === id ? { ...row, needs_label: value } : row))
+    );
 
     if (newLabelRows) {
       if (value) {
@@ -567,6 +570,7 @@ export default function Page() {
                   <th>Size</th>
                   <th>Qty</th>
                   <th>Check</th>
+                  <th>New Label</th>
                 </tr>
               </thead>
               <tbody>
@@ -590,6 +594,15 @@ export default function Page() {
                           aria-label={`Mark ${row.location} ${row.item} checked`}
                           checked={false}
                           onChange={() => markOutstandingChecked(row.id)}
+                          className="check-box"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="checkbox"
+                          aria-label={`Flag ${row.location} ${row.item} for a new label`}
+                          checked={row.needs_label === true}
+                          onChange={(e) => setNewLabelFlag(row.id, e.target.checked)}
                           className="check-box"
                         />
                       </td>

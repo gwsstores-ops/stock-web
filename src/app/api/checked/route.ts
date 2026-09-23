@@ -9,7 +9,7 @@ export async function GET(req: Request) {
 
   let query = supabase
     .from("stock_flat")
-    .select("id, location, pallet_id, area, item, size, qty")
+    .select("id, location, pallet_id, area, item, size, qty, needs_label")
     .or("stock_check.is.null,stock_check.eq.false");
 
   if (area) {
