@@ -116,6 +116,26 @@ export default function Page() {
     loadOutstanding();
   };
 
+  const deleteRow = async (id: number) => {
+    const confirmDelete = confirm("Delete this stock line? This cannot be undone.");
+    if (!confirmDelete) return;
+
+    const res = await fetch("/api/delete-stock-line", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id })
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      alert(data?.error || "Could not delete stock line");
+      return;
+    }
+
+    setRows((prev) => prev.filter((row) => row.id !== id));
+    loadOutstanding();
+  };
+
   const markOutstandingChecked = async (id: number) => {
     const res = await fetch("/api/mark-checked", {
       method: "POST",
@@ -405,6 +425,7 @@ export default function Page() {
                   <th>Qty</th>
                   <th>Checked</th>
                   <th>New Label</th>
+                  <th>Delete</th>
                 </tr>
               </thead>
               <tbody>
@@ -434,6 +455,15 @@ export default function Page() {
                         onChange={(e) => setNewLabelFlag(row.id, e.target.checked)}
                         className="check-box"
                       />
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => deleteRow(row.id)}
+                        className="button button-danger"
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))}

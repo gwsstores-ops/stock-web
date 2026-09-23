@@ -1,29 +1,27 @@
 import Image from "next/image";
 import Link from "next/link";
 import AppHeader from "@/components/AppHeader";
+import AdminLogoutButton from "./AdminLogoutButton";
 
 const tools = [
   {
-    href: "/container-labels",
-    label: "Container Labels",
-    icon: "/icons/container.png"
+    href: "/stock-check",
+    label: "Stock Check",
+    icon: "/icons/stock-check-icon.svg"
   },
   {
-    href: "/pallet-label",
-    label: "Pallet Label",
-    icon: "/icons/label-icon.svg"
-  },
-  {
-    href: "/admin",
-    label: "Admin",
-    icon: "/icons/admin-icon.svg"
+    href: "/cert-combine",
+    label: "Cert Combine",
+    icon: "/icons/cert-combine.svg"
   }
 ];
 
-export default function ToolsPage() {
+export default function AdminPage() {
   return (
     <main className="page-shell">
-      <AppHeader title="Tools" />
+      <AppHeader title="Admin">
+        <AdminLogoutButton />
+      </AppHeader>
 
       <section className="panel panel-flat">
         <div className="tool-grid">
