@@ -25,6 +25,10 @@ export default function Page() {
   const [filterArea, setFilterArea] = useState("");
   const [filterLocation, setFilterLocation] = useState("");
 
+  const [checkedRows, setCheckedRows] = useState<Row[]>([]);
+  const [checkedFilterArea, setCheckedFilterArea] = useState("");
+  const [checkedFilterLocation, setCheckedFilterLocation] = useState("");
+
   const [newLabelRows, setNewLabelRows] = useState<Row[] | null>(null);
 
   /* ==============================
@@ -149,6 +153,19 @@ export default function Page() {
     refreshSearch();
   };
 
+  const markCheckedUnchecked = async (id: number) => {
+    const res = await fetch("/api/mark-checked", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, value: false })
+    });
+
+    if (!res.ok) return;
+
+    setCheckedRows((prev) => prev.filter((row) => row.id !== id));
+    refreshSearch();
+  };
+
   /* ==============================
      NEW LABEL FLAG
   ============================== */
@@ -166,6 +183,9 @@ export default function Page() {
       prev.map((row) => (row.id === id ? { ...row, needs_label: value } : row))
     );
     setOutstandingRows((prev) =>
+      prev.map((row) => (row.id === id ? { ...row, needs_label: value } : row))
+    );
+    setCheckedRows((prev) =>
       prev.map((row) => (row.id === id ? { ...row, needs_label: value } : row))
     );
 
@@ -195,6 +215,9 @@ export default function Page() {
     setOutstandingRows((prev) =>
       prev.map((row) => (row.id === id ? { ...row, pallet_id: value } : row))
     );
+    setCheckedRows((prev) =>
+      prev.map((row) => (row.id === id ? { ...row, pallet_id: value } : row))
+    );
   };
 
   const savePalletId = async (id: number, value: string) => {
@@ -211,6 +234,7 @@ export default function Page() {
       alert("Could not update pallet ID");
       loadNewLabels();
       loadOutstanding();
+      loadChecked();
     }
   };
 
@@ -262,6 +286,7 @@ export default function Page() {
 
     refreshSearch();
     loadOutstanding();
+    loadChecked();
   };
 
   /* ==============================
@@ -277,6 +302,21 @@ export default function Page() {
     const res = await fetch(`/api/checked?${params}`);
     const data = await res.json();
     setOutstandingRows(data.rows || []);
+  };
+
+  /* ==============================
+     LOAD CHECKED
+  ============================== */
+
+  const loadChecked = async () => {
+    const params = new URLSearchParams({ status: "checked" });
+
+    if (checkedFilterArea) params.append("area", checkedFilterArea);
+    if (checkedFilterLocation) params.append("location", checkedFilterLocation);
+
+    const res = await fetch(`/api/checked?${params}`);
+    const data = await res.json();
+    setCheckedRows(data.rows || []);
   };
 
   /* ==============================
@@ -312,6 +352,42 @@ export default function Page() {
     link.setAttribute(
       "download",
       `outstanding_${new Date().toISOString().slice(0, 10)}.csv`
+    );
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportCheckedCSV = () => {
+    if (!checkedRows.length) return;
+
+    const headers = ["Location", "Pallet ID", "Item", "Size", "Qty"];
+
+    const csvRows = [
+      headers.join(","),
+      ...checkedRows.map((row) =>
+        [
+          row.location,
+          `"${row.pallet_id ?? ""}"`,
+          `"${row.item}"`,
+          `"${row.size}"`,
+          row.qty ?? 0
+        ].join(",")
+      )
+    ];
+
+    const blob = new Blob([csvRows.join("\n")], {
+      type: "text/csv;charset=utf-8;"
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.setAttribute(
+      "download",
+      `checked_${new Date().toISOString().slice(0, 10)}.csv`
     );
 
     document.body.appendChild(link);
@@ -668,6 +744,128 @@ export default function Page() {
                           aria-label={`Mark ${row.location} ${row.item} checked`}
                           checked={false}
                           onChange={() => markOutstandingChecked(row.id)}
+                          className="check-box"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="checkbox"
+                          aria-label={`Flag ${row.location} ${row.item} for a new label`}
+                          checked={row.needs_label === true}
+                          onChange={(e) => setNewLabelFlag(row.id, e.target.checked)}
+                          className="check-box"
+                        />
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="section-kicker">Checked</p>
+            <h2>Checked stock</h2>
+          </div>
+        </div>
+
+        <div className="outstanding-actions">
+          {checkedRows.length > 0 && (
+            <button
+              type="button"
+              onClick={exportCheckedCSV}
+              className="button button-secondary"
+            >
+              Export CSV
+            </button>
+          )}
+        </div>
+
+        <div className="filter-grid">
+          <label className="field">
+            <span className="field-label">Area</span>
+            <select
+              value={checkedFilterArea}
+              onChange={(e) => setCheckedFilterArea(e.target.value)}
+              className="control"
+            >
+              <option value="">All areas</option>
+              <option value="GWS">GWS</option>
+              <option value="W3">W3</option>
+              <option value="W4">W4</option>
+            </select>
+          </label>
+
+          <label className="field">
+            <span className="field-label">Location is</span>
+            <input
+              placeholder="Optional location filter"
+              value={checkedFilterLocation}
+              onChange={(e) => setCheckedFilterLocation(e.target.value.toUpperCase())}
+              className="control"
+            />
+          </label>
+
+          <button
+            type="button"
+            onClick={loadChecked}
+            className="button button-primary"
+          >
+            Load
+          </button>
+        </div>
+
+        <div className="table-wrap" style={{ marginTop: 16 }}>
+          {checkedRows.length === 0 ? (
+            <div className="empty-state">
+              Load the list to see checked stock.
+            </div>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Location</th>
+                  <th>Pallet ID</th>
+                  <th>Item</th>
+                  <th>Size</th>
+                  <th>Qty</th>
+                  <th>Uncheck</th>
+                  <th>New Label</th>
+                </tr>
+              </thead>
+              <tbody>
+                {checkedRows
+                  .slice()
+                  .sort(
+                    (a, b) =>
+                      a.location.localeCompare(b.location) ||
+                      (a.pallet_id ?? "").localeCompare(b.pallet_id ?? "")
+                  )
+                  .map((row) => (
+                    <tr key={row.id}>
+                      <td>{row.location}</td>
+                      <td className="pallet-id">
+                        <input
+                          type="text"
+                          value={row.pallet_id ?? ""}
+                          onChange={(e) => editPalletIdLocally(row.id, e.target.value)}
+                          onBlur={(e) => savePalletId(row.id, e.target.value)}
+                          aria-label={`Edit pallet ID for ${row.location}`}
+                          className="control"
+                        />
+                      </td>
+                      <td style={getItemStyle(row.item)}>{row.item}</td>
+                      <td>{row.size}</td>
+                      <td>{row.qty?.toLocaleString()}</td>
+                      <td>
+                        <input
+                          type="checkbox"
+                          aria-label={`Mark ${row.location} ${row.item} unchecked`}
+                          checked={true}
+                          onChange={() => markCheckedUnchecked(row.id)}
                           className="check-box"
                         />
                       </td>
