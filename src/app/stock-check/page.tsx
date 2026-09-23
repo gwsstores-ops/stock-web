@@ -192,6 +192,9 @@ export default function Page() {
     setNewLabelRows((prev) =>
       prev ? prev.map((row) => (row.id === id ? { ...row, pallet_id: value } : row)) : prev
     );
+    setOutstandingRows((prev) =>
+      prev.map((row) => (row.id === id ? { ...row, pallet_id: value } : row))
+    );
   };
 
   const savePalletId = async (id: number, value: string) => {
@@ -207,6 +210,7 @@ export default function Page() {
     if (!res.ok) {
       alert("Could not update pallet ID");
       loadNewLabels();
+      loadOutstanding();
     }
   };
 
@@ -645,7 +649,16 @@ export default function Page() {
                   .map((row) => (
                     <tr key={row.id}>
                       <td>{row.location}</td>
-                      <td className="pallet-id">{row.pallet_id ?? "—"}</td>
+                      <td className="pallet-id">
+                        <input
+                          type="text"
+                          value={row.pallet_id ?? ""}
+                          onChange={(e) => editPalletIdLocally(row.id, e.target.value)}
+                          onBlur={(e) => savePalletId(row.id, e.target.value)}
+                          aria-label={`Edit pallet ID for ${row.location}`}
+                          className="control"
+                        />
+                      </td>
                       <td style={getItemStyle(row.item)}>{row.item}</td>
                       <td>{row.size}</td>
                       <td>{row.qty?.toLocaleString()}</td>
