@@ -9,11 +9,12 @@
  * Text is measured, so a long item or size shrinks to stay on one line.
  */
 
-export const MAX_SIZES = 4;
+export const MAX_SIZES = 5;
 
 export type LabelInput = {
   item: string;
   sizes: string[];
+  qtys?: string[];
   palletId: string;
   date?: Date;
 };
@@ -71,7 +72,12 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
 
   const item = input.item.trim().toUpperCase();
   const palletId = input.palletId.trim().toUpperCase();
-  const sizes = input.sizes.map((s) => s.trim().toUpperCase()).filter(Boolean);
+  const rawQtys = input.qtys ?? [];
+  const sizeEntries = input.sizes
+    .map((s, i) => ({ size: s.trim().toUpperCase(), qty: (rawQtys[i] ?? "").trim() }))
+    .filter((entry) => entry.size !== "");
+  const sizes = sizeEntries.map((entry) => entry.size);
+  const qtys = sizeEntries.map((entry) => entry.qty);
   const date = formatLabelDate(input.date ?? new Date());
 
   if (!item || !palletId || sizes.length === 0 || sizes.length > MAX_SIZES) {
@@ -79,7 +85,7 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
   }
 
   // The built-in PDF fonts only cover Latin-1; anything else would print as garbage
-  for (const text of [item, palletId, ...sizes]) {
+  for (const text of [item, palletId, ...sizes, ...qtys.filter(Boolean)]) {
     const bad = [...text].find((ch) => ch.charCodeAt(0) > 0xff);
     if (bad) {
       throw new Error(`"${bad}" can't be printed on the label. Remove it and try again.`);
@@ -103,6 +109,22 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
     return Math.max(20, Math.min(max, (100 * CONTENT_W) / width));
   };
 
+  // A size's qty is printed right after it, in non-bold text: "20 X 80 =1000"
+  const qtySuffix = (qty: string) => (qty ? ` =${qty}` : "");
+
+  // Like `fit`, but measures the bold size text plus its non-bold qty suffix together
+  const fitSize = (size: string, qty: string, max: number) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(max);
+    const sizeWidth = doc.getTextWidth(size);
+    const suffix = qtySuffix(qty);
+    doc.setFont("helvetica", "normal");
+    const suffixWidth = suffix ? doc.getTextWidth(suffix) : 0;
+    doc.setFont("helvetica", "bold");
+    const width = sizeWidth + suffixWidth;
+    return width > CONTENT_W ? Math.max(20, (max * CONTENT_W) / width) : max;
+  };
+
   const itemPt = fill(item, ITEM_MAX_PT);
   const palletPt = fit(palletId, PALLET_PT);
 
@@ -114,8 +136,8 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
   const sizesTop = MARGIN + itemPt * LINE_EM + GAP_PT;
   const sizesRoom = bottomTop - GAP_PT - sizesTop;
   const heightCapPt = sizesRoom / sizes.length / LINE_EM;
-  const sizePts = sizes.map((s) =>
-    Math.max(SIZE_MIN_PT, Math.min(fit(s, SIZE_MAX_PT), heightCapPt, itemPt))
+  const sizePts = sizes.map((s, i) =>
+    Math.max(SIZE_MIN_PT, Math.min(fitSize(s, qtys[i], SIZE_MAX_PT), heightCapPt, itemPt))
   );
 
   let y = MARGIN;
@@ -162,10 +184,29 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
     y += pt * LINE_EM;
   };
 
+  // A size line, with its qty (if any) appended in non-bold text right after it
+  const drawSizeLine = (size: string, qty: string, pt: number) => {
+    const baseline = y + pt * BASELINE_EM;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(pt);
+    doc.text(size, MARGIN, baseline);
+
+    const suffix = qtySuffix(qty);
+    if (suffix) {
+      const sizeWidth = doc.getTextWidth(size);
+      doc.setFont("helvetica", "normal");
+      doc.text(suffix, MARGIN + sizeWidth, baseline);
+      doc.setFont("helvetica", "bold");
+    }
+
+    y += pt * LINE_EM;
+  };
+
   drawLine(item, itemPt, "center", true, highlightFor(item));
 
   y = sizesTop;
-  sizes.forEach((size, i) => drawLine(size, sizePts[i], "left"));
+  sizes.forEach((size, i) => drawSizeLine(size, qtys[i], sizePts[i]));
 
   y = bottomTop;
 

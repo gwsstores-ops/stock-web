@@ -7,6 +7,7 @@ import { buildLabelPdf, formatLabelDate, MAX_SIZES } from "@/lib/labelPdf";
 export default function PalletLabelPage() {
   const [sizeCount, setSizeCount] = useState(1);
   const [sizes, setSizes] = useState<string[]>(Array(MAX_SIZES).fill(""));
+  const [qtys, setQtys] = useState<string[]>(Array(MAX_SIZES).fill(""));
   const [item, setItem] = useState("");
   const [palletId, setPalletId] = useState("");
   const [itemOptions, setItemOptions] = useState<string[]>([]);
@@ -42,6 +43,7 @@ export default function PalletLabelPage() {
   }, []);
 
   const activeSizes = sizes.slice(0, sizeCount);
+  const activeQtys = qtys.slice(0, sizeCount);
   const ready =
     item.trim() !== "" &&
     palletId.trim() !== "" &&
@@ -49,6 +51,10 @@ export default function PalletLabelPage() {
 
   const updateSize = (index: number, value: string) => {
     setSizes((current) => current.map((s, i) => (i === index ? value.toUpperCase() : s)));
+  };
+
+  const updateQty = (index: number, value: string) => {
+    setQtys((current) => current.map((q, i) => (i === index ? value : q)));
   };
 
   const handleDownload = async () => {
@@ -62,6 +68,7 @@ export default function PalletLabelPage() {
       const blob = await buildLabelPdf({
         item,
         sizes: activeSizes,
+        qtys: activeQtys,
         palletId,
         date: now
       });
@@ -131,18 +138,31 @@ export default function PalletLabelPage() {
         </datalist>
 
         {activeSizes.map((size, index) => (
-          <label key={index} className="field" style={{ marginTop: 14 }}>
-            <span className="field-label">
-              {sizeCount === 1 ? "Size" : `Size ${index + 1}`}
-            </span>
-            <input
-              value={size}
-              onChange={(e) => updateSize(index, e.target.value)}
-              placeholder="For example: 20 X 80"
-              className="control"
-              autoComplete="off"
-            />
-          </label>
+          <div key={index} style={{ display: "flex", gap: 8, marginTop: 14 }}>
+            <label className="field" style={{ flex: 1 }}>
+              <span className="field-label">
+                {sizeCount === 1 ? "Size" : `Size ${index + 1}`}
+              </span>
+              <input
+                value={size}
+                onChange={(e) => updateSize(index, e.target.value)}
+                placeholder="For example: 20 X 80"
+                className="control"
+                autoComplete="off"
+              />
+            </label>
+            <label className="field" style={{ width: 110 }}>
+              <span className="field-label">Qty</span>
+              <input
+                value={qtys[index]}
+                onChange={(e) => updateQty(index, e.target.value)}
+                placeholder="1000"
+                className="control"
+                autoComplete="off"
+                inputMode="numeric"
+              />
+            </label>
+          </div>
         ))}
 
         <label className="field" style={{ marginTop: 14 }}>
