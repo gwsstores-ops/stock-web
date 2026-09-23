@@ -168,6 +168,28 @@ export default function Page() {
     await setNewLabelFlag(id, false);
   };
 
+  const editPalletIdLocally = (id: number, value: string) => {
+    setNewLabelRows((prev) =>
+      prev ? prev.map((row) => (row.id === id ? { ...row, pallet_id: value } : row)) : prev
+    );
+  };
+
+  const savePalletId = async (id: number, value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+
+    const res = await fetch("/api/rename-pallet", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, label: trimmed })
+    });
+
+    if (!res.ok) {
+      alert("Could not update pallet ID");
+      loadNewLabels();
+    }
+  };
+
   const exportNewLabelsCSV = () => {
     if (!newLabelRows || newLabelRows.length === 0) return;
 
@@ -469,7 +491,16 @@ export default function Page() {
                   {newLabelRows.map((row) => (
                     <tr key={row.id}>
                       <td>{row.location}</td>
-                      <td className="pallet-id">{row.pallet_id ?? "—"}</td>
+                      <td className="pallet-id">
+                        <input
+                          type="text"
+                          value={row.pallet_id ?? ""}
+                          onChange={(e) => editPalletIdLocally(row.id, e.target.value)}
+                          onBlur={(e) => savePalletId(row.id, e.target.value)}
+                          aria-label={`Edit pallet ID for ${row.location}`}
+                          className="control"
+                        />
+                      </td>
                       <td style={getItemStyle(row.item)}>{row.item}</td>
                       <td>
                         <span className={getSizeBadgeClass(row.size)}>{row.size}</span>
