@@ -41,6 +41,33 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true });
   }
 
+  // If a pallet with that label already exists in the bay, this line should
+  // join it (merging onto that physical pallet) rather than renaming into
+  // a label collision.
+  const { data: existingTarget, error: existingError } = await admin
+    .from("pallet")
+    .select("id")
+    .eq("bay_id", currentPallet.bay_id)
+    .eq("label", trimmed)
+    .maybeSingle();
+
+  if (existingError) {
+    return NextResponse.json({ error: existingError.message }, { status: 500 });
+  }
+
+  if (existingTarget) {
+    const { error: moveError } = await admin
+      .from("stock_line")
+      .update({ pallet_id: existingTarget.id })
+      .eq("id", id);
+
+    if (moveError) {
+      return NextResponse.json({ error: moveError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  }
+
   const { count: siblingCount, error: countError } = await admin
     .from("stock_line")
     .select("id", { count: "exact", head: true })
@@ -66,41 +93,23 @@ export async function POST(req: Request) {
   }
 
   // Other lines still share this pallet, so detach this line onto its own
-  // pallet row instead of renaming the shared one out from under them.
-  // If a pallet with that label already exists in the bay, join it there.
-  const { data: existingTarget, error: existingError } = await admin
+  // new pallet row instead of renaming the shared one out from under them.
+  const { data: newPallet, error: insertError } = await admin
     .from("pallet")
+    .insert({ bay_id: currentPallet.bay_id, label: trimmed })
     .select("id")
-    .eq("bay_id", currentPallet.bay_id)
-    .eq("label", trimmed)
-    .maybeSingle();
+    .single();
 
-  if (existingError) {
-    return NextResponse.json({ error: existingError.message }, { status: 500 });
-  }
-
-  let targetPalletId = existingTarget?.id as number | undefined;
-
-  if (!targetPalletId) {
-    const { data: newPallet, error: insertError } = await admin
-      .from("pallet")
-      .insert({ bay_id: currentPallet.bay_id, label: trimmed })
-      .select("id")
-      .single();
-
-    if (insertError || !newPallet) {
-      return NextResponse.json(
-        { error: insertError?.message ?? "Could not create pallet" },
-        { status: 500 }
-      );
-    }
-
-    targetPalletId = newPallet.id;
+  if (insertError || !newPallet) {
+    return NextResponse.json(
+      { error: insertError?.message ?? "Could not create pallet" },
+      { status: 500 }
+    );
   }
 
   const { error: moveError } = await admin
     .from("stock_line")
-    .update({ pallet_id: targetPalletId })
+    .update({ pallet_id: newPallet.id })
     .eq("id", id);
 
   if (moveError) {
