@@ -208,6 +208,32 @@ export default function Page() {
     await setNewLabelFlag(id, false);
   };
 
+  const clearAllNewLabels = async () => {
+    if (!newLabelRows || newLabelRows.length === 0) return;
+
+    const confirmClear = confirm("Clear all new label flags?");
+    if (!confirmClear) return;
+
+    const results = await Promise.all(
+      newLabelRows.map((row) =>
+        fetch("/api/mark-new-label", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: row.id, value: false })
+        })
+      )
+    );
+
+    if (results.some((res) => !res.ok)) {
+      alert("Some labels could not be cleared. Showing current state.");
+    }
+
+    loadNewLabels();
+    refreshSearch();
+    loadOutstanding();
+    loadChecked();
+  };
+
   const editPalletIdLocally = (id: number, value: string) => {
     setNewLabelRows((prev) =>
       prev ? prev.map((row) => (row.id === id ? { ...row, pallet_id: value } : row)) : prev
@@ -571,13 +597,23 @@ export default function Page() {
           </button>
 
           {newLabelRows && newLabelRows.length > 0 && (
-            <button
-              type="button"
-              onClick={exportNewLabelsCSV}
-              className="button button-secondary"
-            >
-              Export CSV
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={exportNewLabelsCSV}
+                className="button button-secondary"
+              >
+                Export CSV
+              </button>
+
+              <button
+                type="button"
+                onClick={clearAllNewLabels}
+                className="button button-danger"
+              >
+                Clear all
+              </button>
+            </>
           )}
         </div>
 
