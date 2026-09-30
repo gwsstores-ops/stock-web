@@ -116,11 +116,11 @@ export default function CertCombinePage() {
         </div>
 
         <label className="field">
-          <span className="field-label">List CSV</span>
+          <span className="field-label">List CSV or Excel</span>
           <input
             ref={listInputRef}
             type="file"
-            accept=".csv,text/csv"
+            accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             className="control"
             onChange={(e) => {
               setListFile(e.target.files?.[0] ?? null);
@@ -131,10 +131,11 @@ export default function CertCombinePage() {
         </label>
 
         <p className="helper-text">
-          The BLANK column is written into Confirmation Notes on the blank row
-          before each file, matched by order only - so the list needs the same
-          number of rows as there are files, in the same order. If BLANK is
-          empty it is built from Number, Customer Ref and Job Number.
+          Accepts a .csv or .xlsx file. The BLANK column is written into
+          Confirmation Notes on the blank row before each file, matched by
+          order only - so the list needs the same number of rows as there are
+          files, in the same order. If BLANK is empty it is built from
+          Number, Customer Ref and Job Number.
         </p>
       </section>
 

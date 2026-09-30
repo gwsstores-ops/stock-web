@@ -4,9 +4,9 @@
  * Combines a zip of many single-file Excel exports (Quantity, Line, Product,
  * Description, Confirmation Notes) into one workbook, filtered to specific
  * Product codes, with a blank separator row before each source file's block.
- * Optionally merges in a "LIST" CSV whose BLANK column supplies a certificate
- * reference note that goes into the Confirmation Notes cell of each separator
- * row, in order.
+ * Optionally merges in a "LIST" (.csv or .xlsx) whose BLANK column supplies a
+ * certificate reference note that goes into the Confirmation Notes cell of
+ * each separator row, in order.
  *
  * Business rules (keep in step with the Python script):
  *
@@ -31,6 +31,7 @@
  *     it errors rather than guessing. The text goes in Confirmation Notes.
  */
 
+import type ExcelJSType from "exceljs";
 import type { Cell, Row, Worksheet } from "exceljs";
 import JSZip from "jszip";
 
@@ -145,10 +146,8 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 
-/** One BLANK string per data row of the LIST csv, in file order. */
-export function readListBlanks(csvText: string): string[] {
-  const [header = [], ...data] = parseCsv(csvText);
-
+/** Shared BLANK-column logic once the LIST has been reduced to a header + string rows. */
+function blanksFromRows(header: string[], data: string[][]): string[] {
   const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
   const findCol = (name: string) =>
     header.findIndex((h) => norm(h) === name.toLowerCase());
@@ -171,6 +170,28 @@ export function readListBlanks(csvText: string): string[] {
         get(row, colJobNum)
       );
     });
+}
+
+/** One BLANK string per data row of the LIST csv, in file order. */
+export function readListBlanks(csvText: string): string[] {
+  const [header = [], ...data] = parseCsv(csvText);
+  return blanksFromRows(header, data);
+}
+
+/** Same as readListBlanks, but for a LIST supplied as an .xlsx workbook. */
+export function readListBlanksFromWorkbook(ws: Worksheet): string[] {
+  const rows: string[][] = [];
+  ws.eachRow({ includeEmpty: false }, (row) => {
+    const cells: string[] = [];
+    row.eachCell({ includeEmpty: true }, (cell) => {
+      const v = plainValue(cell);
+      cells.push(v === null || v === undefined ? "" : String(v));
+    });
+    rows.push(cells);
+  });
+
+  const [header = [], ...data] = rows;
+  return blanksFromRows(header, data);
 }
 
 /** Reduce an ExcelJS cell to the plain value Excel would show (formula result, text, ...). */
@@ -215,6 +236,29 @@ function readSourceRows(ws: Worksheet): SourceRow[] {
   return out;
 }
 
+/** Reads the LIST as either .csv or .xlsx, based on the file's extension. */
+async function readList(
+  ExcelJS: typeof ExcelJSType,
+  listFile: File
+): Promise<string[]> {
+  const name = listFile.name.toLowerCase();
+
+  if (name.endsWith(".xlsx")) {
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(await listFile.arrayBuffer());
+    const ws = wb.worksheets[0];
+    return ws ? readListBlanksFromWorkbook(ws) : [];
+  }
+
+  if (name.endsWith(".csv") || name.endsWith(".txt")) {
+    return readListBlanks(await listFile.text());
+  }
+
+  throw new Error(
+    `Unsupported list file type: ${listFile.name}. Use a .csv or .xlsx file.`
+  );
+}
+
 export async function combineCerts(
   zipFile: File,
   listFile: File | null,
@@ -245,7 +289,9 @@ export async function combineCerts(
     throw new Error(`No .xlsx files found inside ${zipFile.name}`);
   }
 
-  const blanks = listFile ? readListBlanks(await listFile.text()) : null;
+  const blanks = listFile
+    ? await readList(ExcelJS, listFile)
+    : null;
 
   // Fail before doing any work if the counts cannot be matched.
   if (blanks && blanks.length !== entries.length) {
