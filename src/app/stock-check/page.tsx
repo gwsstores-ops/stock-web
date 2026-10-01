@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import AppHeader from "@/components/AppHeader";
 
 type Row = {
@@ -16,129 +16,51 @@ type Row = {
 };
 
 export default function Page() {
-  const [location, setLocation] = useState("");
-  const [lookupArea, setLookupArea] = useState("");
-  const [rows, setRows] = useState<Row[]>([]);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [area, setArea] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
 
   const [outstandingRows, setOutstandingRows] = useState<Row[]>([]);
-  const [filterArea, setFilterArea] = useState("");
-  const [filterLocation, setFilterLocation] = useState("");
-
   const [checkedRows, setCheckedRows] = useState<Row[]>([]);
-  const [checkedFilterArea, setCheckedFilterArea] = useState("");
-  const [checkedFilterLocation, setCheckedFilterLocation] = useState("");
 
   const [newLabelRows, setNewLabelRows] = useState<Row[] | null>(null);
 
   /* ==============================
-     SEARCH (by pallet ID)
+     LOAD OUTSTANDING / CHECKED
+     (both driven by the same area + location filter)
   ============================== */
 
-  // "exact" = a suggestion was picked; "contains-rows" = whatever was typed
-  type SearchMode = "exact" | "contains-rows";
+  const loadOutstanding = async (areaVal = area, locationVal = locationFilter) => {
+    const params = new URLSearchParams();
+    if (areaVal) params.append("area", areaVal);
+    if (locationVal) params.append("location", locationVal);
 
-  const lastSearch = useRef<{ target: string; area: string; mode: SearchMode } | null>(null);
-  const suggestionRequest = useRef(0);
-
-  const runSearch = async (target: string, area: string, mode: SearchMode) => {
-    if (!target && !area) return;
-    lastSearch.current = { target, area, mode };
-
-    const params = new URLSearchParams({ field: "pallet_id" });
-    if (target) {
-      params.set("location", target);
-      params.set("match", mode);
-    }
-    if (area) params.set("area", area);
-
-    const res = await fetch(`/api/preview?${params.toString()}`);
+    const res = await fetch(`/api/checked?${params}`);
     const data = await res.json();
-    setRows(data.rows || []);
+    setOutstandingRows(data.rows || []);
   };
 
-  // Re-run the search that produced the list on screen (after ticking a box, or a reset)
-  const refreshSearch = () => {
-    const last = lastSearch.current;
-    if (last) runSearch(last.target, last.area, last.mode);
+  const loadChecked = async (areaVal = area, locationVal = locationFilter) => {
+    const params = new URLSearchParams({ status: "checked" });
+    if (areaVal) params.append("area", areaVal);
+    if (locationVal) params.append("location", locationVal);
+
+    const res = await fetch(`/api/checked?${params}`);
+    const data = await res.json();
+    setCheckedRows(data.rows || []);
   };
 
-  /* ==============================
-     AREA (sticky filter)
-  ============================== */
+  const loadBoth = async (areaVal = area, locationVal = locationFilter) => {
+    await Promise.all([loadOutstanding(areaVal, locationVal), loadChecked(areaVal, locationVal)]);
+  };
 
   const handleAreaChange = (value: string) => {
-    setLookupArea(value);
-    setSuggestions([]);
-
-    const last = lastSearch.current;
-    const stillExact = last?.mode === "exact" && last.target === location;
-    runSearch(location, value, stillExact ? "exact" : "contains-rows");
+    setArea(value);
+    loadBoth(value, locationFilter);
   };
 
   /* ==============================
-     AUTOCOMPLETE
+     SINGLE CHECK / UNCHECK
   ============================== */
-
-  const handleLocationChange = async (value: string) => {
-    const upper = value.toUpperCase();
-    setLocation(upper);
-
-    const requestId = ++suggestionRequest.current;
-
-    if (upper.length >= 2) {
-      const params = new URLSearchParams({
-        location: upper,
-        match: "contains",
-        field: "pallet_id"
-      });
-      if (lookupArea) params.set("area", lookupArea);
-
-      const res = await fetch(`/api/preview?${params.toString()}`);
-      const data = await res.json();
-
-      // a slower, older keystroke must not overwrite the newest suggestions
-      if (requestId !== suggestionRequest.current) return;
-      setSuggestions(data.locations || []);
-    } else {
-      setSuggestions([]);
-    }
-  };
-
-  /* ==============================
-     SINGLE CHECK
-  ============================== */
-
-  const markChecked = async (id: number) => {
-    await fetch("/api/mark-checked", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id })
-    });
-
-    refreshSearch();
-    loadOutstanding();
-  };
-
-  const deleteRow = async (id: number) => {
-    const confirmDelete = confirm("Delete this stock line? This cannot be undone.");
-    if (!confirmDelete) return;
-
-    const res = await fetch("/api/delete-stock-line", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id })
-    });
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      alert(data?.error || "Could not delete stock line");
-      return;
-    }
-
-    setRows((prev) => prev.filter((row) => row.id !== id));
-    loadOutstanding();
-  };
 
   const markOutstandingChecked = async (id: number) => {
     const res = await fetch("/api/mark-checked", {
@@ -150,7 +72,7 @@ export default function Page() {
     if (!res.ok) return;
 
     setOutstandingRows((prev) => prev.filter((row) => row.id !== id));
-    refreshSearch();
+    loadChecked();
   };
 
   const markCheckedUnchecked = async (id: number) => {
@@ -163,7 +85,7 @@ export default function Page() {
     if (!res.ok) return;
 
     setCheckedRows((prev) => prev.filter((row) => row.id !== id));
-    refreshSearch();
+    loadOutstanding();
   };
 
   /* ==============================
@@ -179,9 +101,6 @@ export default function Page() {
 
     if (!res.ok) return;
 
-    setRows((prev) =>
-      prev.map((row) => (row.id === id ? { ...row, needs_label: value } : row))
-    );
     setOutstandingRows((prev) =>
       prev.map((row) => (row.id === id ? { ...row, needs_label: value } : row))
     );
@@ -229,9 +148,7 @@ export default function Page() {
     }
 
     loadNewLabels();
-    refreshSearch();
-    loadOutstanding();
-    loadChecked();
+    loadBoth();
   };
 
   const editPalletIdLocally = (id: number, value: string) => {
@@ -259,8 +176,7 @@ export default function Page() {
     if (!res.ok) {
       alert("Could not update pallet ID");
       loadNewLabels();
-      loadOutstanding();
-      loadChecked();
+      loadBoth();
     }
   };
 
@@ -310,39 +226,7 @@ export default function Page() {
 
     await fetch("/api/reset-stock-check", { method: "POST" });
 
-    refreshSearch();
-    loadOutstanding();
-    loadChecked();
-  };
-
-  /* ==============================
-     LOAD OUTSTANDING
-  ============================== */
-
-  const loadOutstanding = async () => {
-    const params = new URLSearchParams();
-
-    if (filterArea) params.append("area", filterArea);
-    if (filterLocation) params.append("location", filterLocation);
-
-    const res = await fetch(`/api/checked?${params}`);
-    const data = await res.json();
-    setOutstandingRows(data.rows || []);
-  };
-
-  /* ==============================
-     LOAD CHECKED
-  ============================== */
-
-  const loadChecked = async () => {
-    const params = new URLSearchParams({ status: "checked" });
-
-    if (checkedFilterArea) params.append("area", checkedFilterArea);
-    if (checkedFilterLocation) params.append("location", checkedFilterLocation);
-
-    const res = await fetch(`/api/checked?${params}`);
-    const data = await res.json();
-    setCheckedRows(data.rows || []);
+    loadBoth();
   };
 
   /* ==============================
@@ -446,7 +330,9 @@ export default function Page() {
     return "";
   };
 
-  const palletCount = new Set(rows.map((row) => row.pallet_id ?? `id-${row.id}`)).size;
+  const checkedPalletCount = new Set(
+    checkedRows.map((row) => row.pallet_id ?? `id-${row.id}`)
+  ).size;
 
   return (
     <main className="page-shell page-shell-wide">
@@ -455,8 +341,8 @@ export default function Page() {
       <section className="panel">
         <div className="section-heading">
           <div>
-            <p className="section-kicker">Location lookup</p>
-            <h2>Find stock to check</h2>
+            <p className="section-kicker">Filter</p>
+            <h2>Area &amp; location</h2>
           </div>
         </div>
 
@@ -464,7 +350,7 @@ export default function Page() {
           <label className="field">
             <span className="field-label">Area</span>
             <select
-              value={lookupArea}
+              value={area}
               onChange={(e) => handleAreaChange(e.target.value)}
               className="control"
             >
@@ -474,110 +360,215 @@ export default function Page() {
               <option value="W4">W4</option>
             </select>
           </label>
-        </div>
 
-        <div className="autocomplete">
           <label className="field">
-            <span className="field-label">Pallet ID</span>
+            <span className="field-label">Location is</span>
             <input
-              value={location}
-              onChange={(e) => handleLocationChange(e.target.value)}
-              placeholder="Enter pallet ID"
+              placeholder="Optional location filter"
+              value={locationFilter}
+              onChange={(e) => setLocationFilter(e.target.value.toUpperCase())}
               className="control"
-              autoComplete="off"
             />
           </label>
 
-        {suggestions.length > 0 && (
-          <div className="suggestions" role="listbox">
-            {suggestions.map((s) => (
-              <button
-                type="button"
-                key={s}
-                className="suggestion"
-                onClick={() => {
-                  suggestionRequest.current++;
-                  setLocation(s);
-                  setSuggestions([]);
-                  runSearch(s, lookupArea, "exact");
-                }}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
+          <button
+            type="button"
+            onClick={() => loadBoth()}
+            className="button button-primary"
+          >
+            Load
+          </button>
         </div>
       </section>
 
-      {rows.length > 0 && (
-        <section className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="section-kicker">Location results</p>
-              <h2>
-                {palletCount} pallet{palletCount === 1 ? "" : "s"}
-              </h2>
-            </div>
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="section-kicker">Outstanding</p>
+            <h2>Unchecked stock</h2>
           </div>
+        </div>
 
-          <div className="table-wrap">
+        <div className="outstanding-actions">
+          <button
+            type="button"
+            onClick={resetAllStockChecks}
+            className="button button-danger"
+          >
+            Reset all checks
+          </button>
+
+          {outstandingRows.length > 0 && (
+            <button
+              type="button"
+              onClick={exportOutstandingCSV}
+              className="button button-secondary"
+            >
+              Export CSV
+            </button>
+          )}
+        </div>
+
+        <div className="table-wrap" style={{ marginTop: 16 }}>
+          {outstandingRows.length === 0 ? (
+            <div className="empty-state">
+              Load the list to see outstanding stock checks.
+            </div>
+          ) : (
             <table className="data-table">
               <thead>
                 <tr>
+                  <th>Location</th>
                   <th>Pallet ID</th>
                   <th>Item</th>
                   <th>Size</th>
                   <th>Qty</th>
-                  <th>Checked</th>
+                  <th>Check</th>
                   <th>New Label</th>
-                  <th>Delete</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
-                  <tr key={row.id}>
-                    <td className="pallet-id">{row.pallet_id ?? "—"}</td>
-                    <td style={getItemStyle(row.item)}>{row.item}</td>
-                    <td>
-                      <span className={getSizeBadgeClass(row.size)}>{row.size}</span>
-                    </td>
-                    <td>{row.qty?.toLocaleString() ?? 0}</td>
-                    <td>
-                      <input
-                        type="checkbox"
-                        aria-label={`Mark pallet ${row.pallet_id ?? row.id} checked`}
-                        checked={row.stock_check === true}
-                        disabled={row.stock_check === true}
-                        onChange={() => markChecked(row.id)}
-                        className="check-box"
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="checkbox"
-                        aria-label={`Flag pallet ${row.pallet_id ?? row.id} for a new label`}
-                        checked={row.needs_label === true}
-                        onChange={(e) => setNewLabelFlag(row.id, e.target.checked)}
-                        className="check-box"
-                      />
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        onClick={() => deleteRow(row.id)}
-                        className="button button-danger"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {outstandingRows
+                  .slice()
+                  .sort(
+                    (a, b) =>
+                      a.location.localeCompare(b.location) ||
+                      (a.pallet_id ?? "").localeCompare(b.pallet_id ?? "")
+                  )
+                  .map((row) => (
+                    <tr key={row.id}>
+                      <td>{row.location}</td>
+                      <td className="pallet-id">
+                        <input
+                          type="text"
+                          value={row.pallet_id ?? ""}
+                          onChange={(e) => editPalletIdLocally(row.id, e.target.value)}
+                          onBlur={(e) => savePalletId(row.id, e.target.value)}
+                          aria-label={`Edit pallet ID for ${row.location}`}
+                          className="control"
+                        />
+                      </td>
+                      <td style={getItemStyle(row.item)}>{row.item}</td>
+                      <td>{row.size}</td>
+                      <td>{row.qty?.toLocaleString()}</td>
+                      <td>
+                        <input
+                          type="checkbox"
+                          aria-label={`Mark ${row.location} ${row.item} checked`}
+                          checked={false}
+                          onChange={() => markOutstandingChecked(row.id)}
+                          className="check-box"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="checkbox"
+                          aria-label={`Flag ${row.location} ${row.item} for a new label`}
+                          checked={row.needs_label === true}
+                          onChange={(e) => setNewLabelFlag(row.id, e.target.checked)}
+                          className="check-box"
+                        />
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
+          )}
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="section-kicker">Checked</p>
+            <h2>
+              Checked stock
+              {checkedRows.length > 0 && (
+                <> &mdash; {checkedPalletCount} pallet{checkedPalletCount === 1 ? "" : "s"}</>
+              )}
+            </h2>
           </div>
-        </section>
-      )}
+        </div>
+
+        <div className="outstanding-actions">
+          {checkedRows.length > 0 && (
+            <button
+              type="button"
+              onClick={exportCheckedCSV}
+              className="button button-secondary"
+            >
+              Export CSV
+            </button>
+          )}
+        </div>
+
+        <div className="table-wrap" style={{ marginTop: 16 }}>
+          {checkedRows.length === 0 ? (
+            <div className="empty-state">
+              Load the list to see checked stock.
+            </div>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Location</th>
+                  <th>Pallet ID</th>
+                  <th>Item</th>
+                  <th>Size</th>
+                  <th>Qty</th>
+                  <th>Uncheck</th>
+                  <th>New Label</th>
+                </tr>
+              </thead>
+              <tbody>
+                {checkedRows
+                  .slice()
+                  .sort(
+                    (a, b) =>
+                      a.location.localeCompare(b.location) ||
+                      (a.pallet_id ?? "").localeCompare(b.pallet_id ?? "")
+                  )
+                  .map((row) => (
+                    <tr key={row.id}>
+                      <td>{row.location}</td>
+                      <td className="pallet-id">
+                        <input
+                          type="text"
+                          value={row.pallet_id ?? ""}
+                          onChange={(e) => editPalletIdLocally(row.id, e.target.value)}
+                          onBlur={(e) => savePalletId(row.id, e.target.value)}
+                          aria-label={`Edit pallet ID for ${row.location}`}
+                          className="control"
+                        />
+                      </td>
+                      <td style={getItemStyle(row.item)}>{row.item}</td>
+                      <td>{row.size}</td>
+                      <td>{row.qty?.toLocaleString()}</td>
+                      <td>
+                        <input
+                          type="checkbox"
+                          aria-label={`Mark ${row.location} ${row.item} unchecked`}
+                          checked={true}
+                          onChange={() => markCheckedUnchecked(row.id)}
+                          className="check-box"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="checkbox"
+                          aria-label={`Flag ${row.location} ${row.item} for a new label`}
+                          checked={row.needs_label === true}
+                          onChange={(e) => setNewLabelFlag(row.id, e.target.checked)}
+                          className="check-box"
+                        />
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </section>
 
       <section className="panel">
         <div className="section-heading">
@@ -668,258 +659,6 @@ export default function Page() {
             )}
           </div>
         )}
-      </section>
-
-      <section className="panel">
-        <div className="section-heading">
-          <div>
-            <p className="section-kicker">Outstanding</p>
-            <h2>Unchecked stock</h2>
-          </div>
-        </div>
-
-        <div className="outstanding-actions">
-          <button
-            type="button"
-            onClick={resetAllStockChecks}
-            className="button button-danger"
-          >
-            Reset all checks
-          </button>
-
-          {outstandingRows.length > 0 && (
-            <button
-              type="button"
-              onClick={exportOutstandingCSV}
-              className="button button-secondary"
-            >
-              Export CSV
-            </button>
-          )}
-        </div>
-
-        <div className="filter-grid">
-          <label className="field">
-            <span className="field-label">Area</span>
-            <select
-              value={filterArea}
-              onChange={(e) => setFilterArea(e.target.value)}
-              className="control"
-            >
-              <option value="">All areas</option>
-              <option value="GWS">GWS</option>
-              <option value="W3">W3</option>
-              <option value="W4">W4</option>
-            </select>
-          </label>
-
-          <label className="field">
-            <span className="field-label">Location is</span>
-            <input
-              placeholder="Optional location filter"
-              value={filterLocation}
-              onChange={(e) => setFilterLocation(e.target.value.toUpperCase())}
-              className="control"
-            />
-          </label>
-
-          <button
-            type="button"
-            onClick={loadOutstanding}
-            className="button button-primary"
-          >
-            Load
-          </button>
-        </div>
-
-        <div className="table-wrap" style={{ marginTop: 16 }}>
-          {outstandingRows.length === 0 ? (
-            <div className="empty-state">
-              Load the list to see outstanding stock checks.
-            </div>
-          ) : (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Location</th>
-                  <th>Pallet ID</th>
-                  <th>Item</th>
-                  <th>Size</th>
-                  <th>Qty</th>
-                  <th>Check</th>
-                  <th>New Label</th>
-                </tr>
-              </thead>
-              <tbody>
-                {outstandingRows
-                  .slice()
-                  .sort(
-                    (a, b) =>
-                      a.location.localeCompare(b.location) ||
-                      (a.pallet_id ?? "").localeCompare(b.pallet_id ?? "")
-                  )
-                  .map((row) => (
-                    <tr key={row.id}>
-                      <td>{row.location}</td>
-                      <td className="pallet-id">
-                        <input
-                          type="text"
-                          value={row.pallet_id ?? ""}
-                          onChange={(e) => editPalletIdLocally(row.id, e.target.value)}
-                          onBlur={(e) => savePalletId(row.id, e.target.value)}
-                          aria-label={`Edit pallet ID for ${row.location}`}
-                          className="control"
-                        />
-                      </td>
-                      <td style={getItemStyle(row.item)}>{row.item}</td>
-                      <td>{row.size}</td>
-                      <td>{row.qty?.toLocaleString()}</td>
-                      <td>
-                        <input
-                          type="checkbox"
-                          aria-label={`Mark ${row.location} ${row.item} checked`}
-                          checked={false}
-                          onChange={() => markOutstandingChecked(row.id)}
-                          className="check-box"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="checkbox"
-                          aria-label={`Flag ${row.location} ${row.item} for a new label`}
-                          checked={row.needs_label === true}
-                          onChange={(e) => setNewLabelFlag(row.id, e.target.checked)}
-                          className="check-box"
-                        />
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="section-heading">
-          <div>
-            <p className="section-kicker">Checked</p>
-            <h2>Checked stock</h2>
-          </div>
-        </div>
-
-        <div className="outstanding-actions">
-          {checkedRows.length > 0 && (
-            <button
-              type="button"
-              onClick={exportCheckedCSV}
-              className="button button-secondary"
-            >
-              Export CSV
-            </button>
-          )}
-        </div>
-
-        <div className="filter-grid">
-          <label className="field">
-            <span className="field-label">Area</span>
-            <select
-              value={checkedFilterArea}
-              onChange={(e) => setCheckedFilterArea(e.target.value)}
-              className="control"
-            >
-              <option value="">All areas</option>
-              <option value="GWS">GWS</option>
-              <option value="W3">W3</option>
-              <option value="W4">W4</option>
-            </select>
-          </label>
-
-          <label className="field">
-            <span className="field-label">Location is</span>
-            <input
-              placeholder="Optional location filter"
-              value={checkedFilterLocation}
-              onChange={(e) => setCheckedFilterLocation(e.target.value.toUpperCase())}
-              className="control"
-            />
-          </label>
-
-          <button
-            type="button"
-            onClick={loadChecked}
-            className="button button-primary"
-          >
-            Load
-          </button>
-        </div>
-
-        <div className="table-wrap" style={{ marginTop: 16 }}>
-          {checkedRows.length === 0 ? (
-            <div className="empty-state">
-              Load the list to see checked stock.
-            </div>
-          ) : (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Location</th>
-                  <th>Pallet ID</th>
-                  <th>Item</th>
-                  <th>Size</th>
-                  <th>Qty</th>
-                  <th>Uncheck</th>
-                  <th>New Label</th>
-                </tr>
-              </thead>
-              <tbody>
-                {checkedRows
-                  .slice()
-                  .sort(
-                    (a, b) =>
-                      a.location.localeCompare(b.location) ||
-                      (a.pallet_id ?? "").localeCompare(b.pallet_id ?? "")
-                  )
-                  .map((row) => (
-                    <tr key={row.id}>
-                      <td>{row.location}</td>
-                      <td className="pallet-id">
-                        <input
-                          type="text"
-                          value={row.pallet_id ?? ""}
-                          onChange={(e) => editPalletIdLocally(row.id, e.target.value)}
-                          onBlur={(e) => savePalletId(row.id, e.target.value)}
-                          aria-label={`Edit pallet ID for ${row.location}`}
-                          className="control"
-                        />
-                      </td>
-                      <td style={getItemStyle(row.item)}>{row.item}</td>
-                      <td>{row.size}</td>
-                      <td>{row.qty?.toLocaleString()}</td>
-                      <td>
-                        <input
-                          type="checkbox"
-                          aria-label={`Mark ${row.location} ${row.item} unchecked`}
-                          checked={true}
-                          onChange={() => markCheckedUnchecked(row.id)}
-                          className="check-box"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="checkbox"
-                          aria-label={`Flag ${row.location} ${row.item} for a new label`}
-                          checked={row.needs_label === true}
-                          onChange={(e) => setNewLabelFlag(row.id, e.target.checked)}
-                          className="check-box"
-                        />
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          )}
-        </div>
       </section>
     </main>
   );
