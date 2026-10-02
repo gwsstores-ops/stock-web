@@ -13,6 +13,11 @@ const tools = [
     href: "/cert-combine",
     label: "Cert Combine",
     icon: "/icons/cert-combine.svg"
+  },
+  {
+    href: "/add-line",
+    label: "Add Line",
+    icon: "/icons/add-line-icon.svg"
   }
 ];
 

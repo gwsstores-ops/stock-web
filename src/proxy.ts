@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ADMIN_SESSION_COOKIE, isValidAdminToken } from "@/lib/adminAuth";
 
 export const config = {
-  matcher: ["/admin/:path*", "/stock-check", "/cert-combine"]
+  matcher: ["/admin/:path*", "/stock-check", "/cert-combine", "/add-line"]
 };
 
 export async function proxy(req: NextRequest) {
