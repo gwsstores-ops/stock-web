@@ -372,6 +372,14 @@ select.control,
   text-align: center;
 }
 
+.gws-unlisted-note p {
+  margin: 0;
+}
+
+.gws-unlisted-note p + p {
+  margin-top: 10px;
+}
+
 .area-section {
   overflow: hidden;
   padding: 0;

@@ -121,8 +121,9 @@ export default function SearchResults({ rows }: SearchResultsProps) {
 
               {area === "GWS" && (
                 <div className="gws-unlisted-note" role="note">
-                  UNLISTED LOCATIONS MAY HAVE STOCK—SHELF, FLOOR, RACK BAYS
-                  NOT UPDATED. CHECK INTACT IF THIS IS LIKELY
+                  <p>UNLISTED LOCATIONS MAY HAVE STOCK</p>
+                  <p>SHELF, FLOOR, RACK BAYS NOT UPDATED</p>
+                  <p>CHECK WITH TOM AND INTACT IF THIS IS LIKELY</p>
                 </div>
               )}
 
