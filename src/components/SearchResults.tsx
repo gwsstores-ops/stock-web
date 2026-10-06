@@ -99,9 +99,9 @@ export default function SearchResults({ rows }: SearchResultsProps) {
       </div>
 
       <div className="gws-unlisted-note" role="note">
-        <p>UNLISTED LOCATIONS MAY HAVE STOCK</p>
-        <p>SHELF, FLOOR, RACK BAYS NOT UPDATED</p>
-        <p>CHECK WITH TOM AND INTACT IF THIS IS LIKELY</p>
+        <p>UNLISTED LOCATIONS MAY HAVE STOCK.</p>
+        <p>SHELF, FLOOR, RACK BAYS NOT UPDATED, ETC.</p>
+        <p>CHECK WITH TOM AND INTACT IF THIS IS LIKELY.</p>
       </div>
 
       <div aria-live="polite">
