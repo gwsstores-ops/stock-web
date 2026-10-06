@@ -41,12 +41,18 @@ export default function Page() {
   });
 
   const [itemMenuOpen, setItemMenuOpen] = useState(false);
+  const [itemQuery, setItemQuery] = useState("");
 
   const itemRef = useRef<HTMLButtonElement>(null);
+  const itemSearchRef = useRef<HTMLInputElement>(null);
   const diamRef = useRef<HTMLSelectElement>(null);
   const lengthRef = useRef<HTMLSelectElement>(null);
   const catRef = useRef<HTMLSelectElement>(null);
   const itemFieldRef = useRef<HTMLDivElement>(null);
+
+  const visibleItems = itemQuery
+    ? items.filter(i => i.toLowerCase().includes(itemQuery.toLowerCase()))
+    : items;
 
   // CLOSE ITEM DROPDOWN ON OUTSIDE CLICK
   useEffect(() => {
@@ -60,6 +66,11 @@ export default function Page() {
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [itemMenuOpen]);
+
+  // FOCUS SEARCH BOX WHEN ITEM DROPDOWN OPENS
+  useEffect(() => {
+    if (itemMenuOpen) itemSearchRef.current?.focus();
   }, [itemMenuOpen]);
 
   // LOAD COUNTS
@@ -169,6 +180,7 @@ export default function Page() {
     setCat(value);
     setItem("");
     setItemMenuOpen(false);
+    setItemQuery("");
     setDiam("");
     setLength("");
     setItems([]);
@@ -180,6 +192,7 @@ export default function Page() {
   const handleItemChange = (value: string) => {
     setItem(value);
     setItemMenuOpen(false);
+    setItemQuery("");
     setDiam("");
     setLength("");
     setDiameters([]);
@@ -203,6 +216,7 @@ export default function Page() {
     setCat("");
     setItem("");
     setItemMenuOpen(false);
+    setItemQuery("");
     setDiam("");
     setLength("");
     setItems([]);
@@ -273,7 +287,18 @@ export default function Page() {
 
               {itemMenuOpen && items.length > 0 && (
                 <div className="suggestions" role="listbox">
-                  {items.map(i => (
+                  <input
+                    type="text"
+                    ref={itemSearchRef}
+                    value={itemQuery}
+                    onChange={e => setItemQuery(e.target.value)}
+                    placeholder="Type to filter..."
+                    className="suggestions-search"
+                  />
+                  {visibleItems.length === 0 && (
+                    <p className="suggestion-empty">No items match &quot;{itemQuery}&quot;</p>
+                  )}
+                  {visibleItems.map(i => (
                     <button
                       type="button"
                       key={i}
