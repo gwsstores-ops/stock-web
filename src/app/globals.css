@@ -358,6 +358,19 @@ select.control,
   text-align: center;
 }
 
+.gws-unlisted-note {
+  margin: 0 14px 12px;
+  padding: 10px 14px;
+  color: #714c00;
+  background: #fff7df;
+  border: 1px solid #ead49b;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+
 .area-section {
   overflow: hidden;
   padding: 0;

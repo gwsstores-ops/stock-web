@@ -119,6 +119,13 @@ export default function SearchResults({ rows }: SearchResultsProps) {
                 </div>
               </div>
 
+              {area === "GWS" && (
+                <div className="gws-unlisted-note" role="note">
+                  UNLISTED LOCATIONS MAY HAVE STOCK—SHELF, FLOOR, RACK BAYS
+                  NOT UPDATED. CHECK INTACT IF THIS IS LIKELY
+                </div>
+              )}
+
               <div className="table-wrap">
                 <table className="data-table">
                   <thead>
