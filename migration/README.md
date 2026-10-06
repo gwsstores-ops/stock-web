@@ -16,6 +16,7 @@ The old `stock` table is never modified by anything in this folder.
 | `10_fix_duplicate_display_products.sql` | One-time fix for `product` rows that showed duplicate-looking dropdown options (mismatched value vs. display text), plus a constraint to stop it recurring |
 | `11_fix_item_text_duplicates.sql` | One-time fix for `product.item` rows that showed duplicate-looking Item dropdown options (extra space / mangled emoji encoding) |
 | `12_add_stock_line.sql` | `add_stock_line` (service key only): adds one new stock line for the Admin → Add Line tool. Requires an existing product match, so it can't create a new near-duplicate catalog row |
+| `13_remove_tex_screw_dot_marker.sql` | One-time fix for TEX SCREWS `product.item` rows carrying a "⚫" marker - merges dot/plain duplicates and strips the dot, plus two unrelated GTR14/GTR1420 duplicate rows found at the same time |
 | `99_rollback.sql` / `06_rollback_functions.sql` / `07_rollback_import_sync.sql` | Remove the new tables / functions / trigger |
 
 Needs `SUPABASE_SERVICE_ROLE_KEY` (server only, never `NEXT_PUBLIC_`) in `.env.local` and in the host's environment settings.
