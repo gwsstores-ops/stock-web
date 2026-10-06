@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import AppHeader from "@/components/AppHeader";
+import { areaLabel } from "@/lib/areas";
 
 type Row = {
   id: number;
@@ -356,8 +357,8 @@ export default function Page() {
             >
               <option value="">All areas</option>
               <option value="GWS">GWS</option>
-              <option value="W3">W3</option>
-              <option value="W4">W4</option>
+              <option value="W3">{areaLabel("W3")}</option>
+              <option value="W4">{areaLabel("W4")}</option>
             </select>
           </label>
 

@@ -219,7 +219,7 @@ export default function Page() {
           <div className="stat-card">
             <span className="stat-dot stat-dot-w3" />
             <div>
-              <div className="stat-label">W3 pallets</div>
+              <div className="stat-label">Warehouse 3 pallets</div>
               <div className="stat-value">{locationCounts.W3}</div>
             </div>
           </div>
@@ -227,7 +227,7 @@ export default function Page() {
           <div className="stat-card">
             <span className="stat-dot stat-dot-w4" />
             <div>
-              <div className="stat-label">W4 pallets</div>
+              <div className="stat-label">Warehouse 4 pallets</div>
               <div className="stat-value">{locationCounts.W4}</div>
             </div>
           </div>

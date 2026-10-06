@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import AppHeader from "@/components/AppHeader";
+import { areaLabel } from "@/lib/areas";
 
 type Row = {
   id: number;
@@ -355,7 +356,7 @@ export default function MoveClient() {
                         .toLowerCase()
                         .replaceAll("_", "-")}`}
                     >
-                      {row.area}
+                      {areaLabel(row.area)}
                     </span>
                   )}
                 </div>
@@ -398,7 +399,7 @@ export default function MoveClient() {
                   width={58}
                   height={58}
                 />
-                <span>{loading ? "Moving…" : area}</span>
+                <span>{loading ? "Moving…" : areaLabel(area)}</span>
               </button>
             );
           })}
@@ -460,7 +461,7 @@ export default function MoveClient() {
           <div className="modal-panel move-modal" onClick={(e) => e.stopPropagation()}>
             <Image
               src={moveIconMap[resultModal.area]}
-              alt={resultModal.area}
+              alt={areaLabel(resultModal.area)}
               width={96}
               height={96}
               className="move-modal-icon"

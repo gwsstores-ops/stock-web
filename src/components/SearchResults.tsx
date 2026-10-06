@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState, type CSSProperties } from "react";
+import { areaLabel } from "@/lib/areas";
 
 export type SearchResultRow = {
   id: number;
@@ -114,11 +115,11 @@ export default function SearchResults({ rows }: SearchResultsProps) {
                 <Image
                   src={areaIcon(area)}
                   className="area-icon"
-                  alt={area}
+                  alt={areaLabel(area)}
                   width={42}
                   height={42}
                 />
-                <div className="area-title">{area}</div>
+                <div className="area-title">{areaLabel(area)}</div>
                 <div className="area-count">
                   {grouped[area].length} location
                   {grouped[area].length === 1 ? "" : "s"}

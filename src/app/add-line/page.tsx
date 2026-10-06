@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import AppHeader from "@/components/AppHeader";
+import { areaLabel } from "@/lib/areas";
 
 type FilterOption = {
   value: string;
@@ -271,7 +272,9 @@ export default function AddLinePage() {
             >
               <option value="">Select area</option>
               {AREAS.map((a) => (
-                <option key={a}>{a}</option>
+                <option key={a} value={a}>
+                  {areaLabel(a)}
+                </option>
               ))}
             </select>
           </label>
