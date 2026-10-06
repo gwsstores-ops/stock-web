@@ -97,6 +97,12 @@ export default function SearchResults({ rows }: SearchResultsProps) {
         QTY 1 = QTY UNKNOWN
       </div>
 
+      <div className="gws-unlisted-note" role="note">
+        <p>UNLISTED LOCATIONS MAY HAVE STOCK</p>
+        <p>SHELF, FLOOR, RACK BAYS NOT UPDATED</p>
+        <p>CHECK WITH TOM AND INTACT IF THIS IS LIKELY</p>
+      </div>
+
       <div aria-live="polite">
         {areas
           .filter((area) => grouped[area])
@@ -118,14 +124,6 @@ export default function SearchResults({ rows }: SearchResultsProps) {
                   {grouped[area].length === 1 ? "" : "s"}
                 </div>
               </div>
-
-              {area === "GWS" && (
-                <div className="gws-unlisted-note" role="note">
-                  <p>UNLISTED LOCATIONS MAY HAVE STOCK</p>
-                  <p>SHELF, FLOOR, RACK BAYS NOT UPDATED</p>
-                  <p>CHECK WITH TOM AND INTACT IF THIS IS LIKELY</p>
-                </div>
-              )}
 
               <div className="table-wrap">
                 <table className="data-table">
