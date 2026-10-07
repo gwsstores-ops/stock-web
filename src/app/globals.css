@@ -237,6 +237,12 @@ a {
   text-transform: uppercase;
 }
 
+.field-hint {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .control {
   width: 100%;
   min-height: 52px;

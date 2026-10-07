@@ -19,8 +19,8 @@ export default function AddLinePage() {
 
   const [cat, setCat] = useState("");
   const [item, setItem] = useState("");
-  const [diam, setDiam] = useState("");
-  const [length, setLength] = useState("");
+  const [diamText, setDiamText] = useState("");
+  const [lengthText, setLengthText] = useState("");
   const [size, setSize] = useState("");
 
   const [categories, setCategories] = useState<string[]>([]);
@@ -39,6 +39,21 @@ export default function AddLinePage() {
   const [success, setSuccess] = useState("");
 
   const bayRequestRef = useRef(0);
+
+  // A typed value that exactly matches an existing option reuses that option's
+  // underlying numeric value, so retyping an existing diameter/length can never
+  // create a near-duplicate product. Anything else is a genuinely new value.
+  const matchedDiam = diameters.find(
+    (d) => d.label.trim().toLowerCase() === diamText.trim().toLowerCase()
+  );
+  const matchedLength = lengths.find(
+    (l) => l.label.trim().toLowerCase() === lengthText.trim().toLowerCase()
+  );
+
+  const parseLeadingNumber = (text: string): number | null => {
+    const match = text.trim().match(/^-?\d+(\.\d+)?/);
+    return match ? Number(match[0]) : null;
+  };
 
   // LOAD CATEGORIES
   useEffect(() => {
@@ -67,16 +82,25 @@ export default function AddLinePage() {
           (a: FilterOption, b: FilterOption) => Number(a.value) - Number(b.value)
         );
         setDiameters(sorted);
-        if (sorted.length === 1) setDiam(sorted[0].value);
+        if (sorted.length === 1) setDiamText(sorted[0].label);
       });
   }, [cat, item]);
 
-  // DIAM CHANGED
+  // DIAM CHANGED (only meaningful once it matches an existing diameter - a brand
+  // new diameter has nothing to look lengths up against, so Length is left as a
+  // plain optional free-text field in that case)
   useEffect(() => {
-    if (!diam) return;
+    const matched = diameters.find(
+      (d) => d.label.trim().toLowerCase() === diamText.trim().toLowerCase()
+    );
+    if (!matched) {
+      setHasLength(true);
+      setLengths([]);
+      return;
+    }
 
     fetch(
-      `/api/lengths?cat=${encodeURIComponent(cat)}&item=${encodeURIComponent(item)}&diam=${encodeURIComponent(diam)}`
+      `/api/lengths?cat=${encodeURIComponent(cat)}&item=${encodeURIComponent(item)}&diam=${encodeURIComponent(matched.value)}`
     )
       .then((res) => res.json())
       .then((data) => {
@@ -85,24 +109,40 @@ export default function AddLinePage() {
         if (list.length === 0) {
           setHasLength(false);
           setLengths([]);
-          setLength("");
+          setLengthText("");
           return;
         }
 
         setHasLength(true);
         const sorted = list.sort((a, b) => Number(a.value) - Number(b.value));
         setLengths(sorted);
-        if (sorted.length === 1) setLength(sorted[0].value);
+        if (sorted.length === 1) setLengthText(sorted[0].label);
       });
-  }, [cat, item, diam]);
+  }, [cat, item, diamText, diameters]);
 
-  // DIAM (no length) OR LENGTH CHANGED -> resolve the matching size(s)
+  // DIAM (no length) OR LENGTH CHANGED -> resolve the matching size(s).
+  // Only possible when diameter (and length, if this item has one) match an
+  // existing catalog entry - a brand new diameter/length has no sizes to look up,
+  // so Size is left as a plain free-text field (typing one there creates a new product).
   useEffect(() => {
-    if (!diam) return;
-    if (hasLength && !length) return;
+    const matched = diameters.find(
+      (d) => d.label.trim().toLowerCase() === diamText.trim().toLowerCase()
+    );
+    if (!matched) {
+      setSizes([]);
+      return;
+    }
 
-    const params = new URLSearchParams({ cat, item, diam });
-    if (hasLength) params.set("length", length);
+    const matchedLen = lengths.find(
+      (l) => l.label.trim().toLowerCase() === lengthText.trim().toLowerCase()
+    );
+    if (hasLength && !matchedLen) {
+      setSizes([]);
+      return;
+    }
+
+    const params = new URLSearchParams({ cat, item, diam: matched.value });
+    if (hasLength && matchedLen) params.set("length", matchedLen.value);
 
     fetch(`/api/search?${params.toString()}`)
       .then((res) => res.json())
@@ -113,13 +153,13 @@ export default function AddLinePage() {
         setSizes(distinctSizes);
         setSize(distinctSizes.length === 1 ? distinctSizes[0] : "");
       });
-  }, [cat, item, diam, length, hasLength]);
+  }, [cat, item, diamText, lengthText, diameters, lengths, hasLength]);
 
   const handleCategoryChange = (value: string) => {
     setCat(value);
     setItem("");
-    setDiam("");
-    setLength("");
+    setDiamText("");
+    setLengthText("");
     setSize("");
     setItems([]);
     setDiameters([]);
@@ -129,24 +169,24 @@ export default function AddLinePage() {
 
   const handleItemChange = (value: string) => {
     setItem(value);
-    setDiam("");
-    setLength("");
+    setDiamText("");
+    setLengthText("");
     setSize("");
     setDiameters([]);
     setLengths([]);
     setSizes([]);
   };
 
-  const handleDiamChange = (value: string) => {
-    setDiam(value);
-    setLength("");
+  const handleDiamTextChange = (value: string) => {
+    setDiamText(value);
+    setLengthText("");
     setSize("");
     setLengths([]);
     setSizes([]);
   };
 
-  const handleLengthChange = (value: string) => {
-    setLength(value);
+  const handleLengthTextChange = (value: string) => {
+    setLengthText(value);
     setSize("");
     setSizes([]);
   };
@@ -173,17 +213,14 @@ export default function AddLinePage() {
     }
   };
 
-  const selectedDiam = diameters.find((d) => d.value === diam);
-  const selectedLength = lengths.find((l) => l.value === length);
-
   const canSubmit =
     area &&
     location.trim() &&
     cat &&
     item &&
-    diam &&
-    size &&
-    (!hasLength || length) &&
+    diamText.trim() &&
+    size.trim() &&
+    (!hasLength || lengthText.trim()) &&
     qty.trim() !== "" &&
     Number(qty) >= 0 &&
     !submitting;
@@ -191,8 +228,8 @@ export default function AddLinePage() {
   const resetProduct = () => {
     setCat("");
     setItem("");
-    setDiam("");
-    setLength("");
+    setDiamText("");
+    setLengthText("");
     setSize("");
     setItems([]);
     setDiameters([]);
@@ -217,11 +254,15 @@ export default function AddLinePage() {
           palletId: palletId.trim(),
           cat,
           item,
-          size,
-          diamValue: Number(diam),
-          diamDisplay: selectedDiam?.label ?? diam,
-          lengthValue: hasLength ? Number(length) : null,
-          lengthDisplay: hasLength ? (selectedLength?.label ?? length) : null,
+          size: size.trim(),
+          diamValue: matchedDiam ? Number(matchedDiam.value) : parseLeadingNumber(diamText),
+          diamDisplay: matchedDiam ? matchedDiam.label : diamText.trim(),
+          lengthValue: lengthText.trim()
+            ? matchedLength
+              ? Number(matchedLength.value)
+              : parseLeadingNumber(lengthText)
+            : null,
+          lengthDisplay: lengthText.trim() ? (matchedLength ? matchedLength.label : lengthText.trim()) : null,
           qty: Number(qty),
           note: note.trim(),
           code: code.trim()
@@ -362,56 +403,67 @@ export default function AddLinePage() {
 
           <label className="field">
             <span className="field-label">Diameter</span>
-            <select
-              value={diam}
-              onChange={(e) => handleDiamChange(e.target.value)}
+            <input
+              type="text"
+              list="diameter-options"
+              value={diamText}
+              onChange={(e) => handleDiamTextChange(e.target.value)}
               className="control"
+              placeholder="Select or type a new diameter"
+              autoComplete="off"
               disabled={!item}
-            >
-              <option value="">Select diameter</option>
+            />
+            <datalist id="diameter-options">
               {diameters.map((d) => (
-                <option key={d.value} value={d.value}>
-                  {d.label}
-                </option>
+                <option key={d.value} value={d.label} />
               ))}
-            </select>
+            </datalist>
           </label>
 
           {hasLength && (
             <label className="field">
               <span className="field-label">Length</span>
-              <select
-                value={length}
-                onChange={(e) => handleLengthChange(e.target.value)}
+              <input
+                type="text"
+                list="length-options"
+                value={lengthText}
+                onChange={(e) => handleLengthTextChange(e.target.value)}
                 className="control"
-                disabled={!diam || lengths.length === 0}
-              >
-                <option value="">Select length</option>
+                placeholder="Select or type a new length"
+                autoComplete="off"
+                disabled={!diamText.trim()}
+              />
+              <datalist id="length-options">
                 {lengths.map((l) => (
-                  <option key={l.value} value={l.value}>
-                    {l.label}
-                  </option>
+                  <option key={l.value} value={l.label} />
                 ))}
-              </select>
+              </datalist>
             </label>
           )}
 
-          {sizes.length > 1 && (
+          {diamText.trim() && (hasLength ? lengthText.trim() : true) && (
             <label className="field">
               <span className="field-label">Size</span>
-              <select value={size} onChange={(e) => setSize(e.target.value)} className="control">
-                <option value="">Select size</option>
+              <input
+                type="text"
+                list="size-options"
+                value={size}
+                onChange={(e) => setSize(e.target.value)}
+                className="control"
+                placeholder="Select or type a new size"
+                autoComplete="off"
+              />
+              <datalist id="size-options">
                 {sizes.map((s) => (
-                  <option key={s}>{s}</option>
+                  <option key={s} value={s} />
                 ))}
-              </select>
+              </datalist>
+              {sizes.length === 0 && (
+                <span className="field-hint">
+                  No existing catalog entry matches that diameter/length - this will add a new product.
+                </span>
+              )}
             </label>
-          )}
-
-          {diam && (hasLength ? length : true) && sizes.length === 0 && (
-            <p className="search-error">
-              No existing catalog entry matches that selection. Import it as a new product first.
-            </p>
           )}
         </div>
       </section>
