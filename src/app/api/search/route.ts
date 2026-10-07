@@ -10,6 +10,7 @@ type SearchRow = {
   item: string;
   size: string;
   qty: number | null;
+  gws_in_since: string | null;
 };
 
 export async function GET(req: Request) {
@@ -24,8 +25,8 @@ export async function GET(req: Request) {
     const { data, error } = await fetchAllPages<SearchRow>((from, to) => {
       let query = supabase
         .from("stock_flat")
-        .select("id, location, pallet_id, area, item, size, qty")
-        .in("area", ["GWS", "W3", "W4"]);
+        .select("id, location, pallet_id, area, item, size, qty, gws_in_since")
+        .in("area", ["GWS", "GWS-IN", "W3", "W4"]);
 
       if (cat) query = query.eq("cat", cat);
       if (item) query = query.eq("item", item);

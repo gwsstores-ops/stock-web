@@ -392,7 +392,8 @@ select.control,
   border-bottom: 1px solid var(--line);
 }
 
-.area-header-gws {
+.area-header-gws,
+.area-header-gws-in {
   background: var(--red-100);
 }
 

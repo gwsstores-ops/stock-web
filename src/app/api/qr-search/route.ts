@@ -10,6 +10,7 @@ type SearchRow = {
   item: string;
   size: string;
   qty: number | null;
+  gws_in_since: string | null;
 };
 
 export async function GET(req: Request) {
@@ -27,9 +28,9 @@ export async function GET(req: Request) {
     const { data, error } = await fetchAllPages<SearchRow>((from, to) =>
       supabase
         .from("stock_flat")
-        .select("id, location, pallet_id, area, item, size, qty")
+        .select("id, location, pallet_id, area, item, size, qty, gws_in_since")
         .eq("code", code)
-        .in("area", ["GWS", "W3", "W4"])
+        .in("area", ["GWS", "GWS-IN", "W3", "W4"])
         .order("location", { ascending: true, nullsFirst: false })
         .order("id", { ascending: true })
         .range(from, to)

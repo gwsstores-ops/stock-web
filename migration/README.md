@@ -17,7 +17,8 @@ The old `stock` table is never modified by anything in this folder.
 | `11_fix_item_text_duplicates.sql` | One-time fix for `product.item` rows that showed duplicate-looking Item dropdown options (extra space / mangled emoji encoding) |
 | `12_add_stock_line.sql` | `add_stock_line` (service key only): adds one new stock line for the Admin → Add Line tool. Requires an existing product match, so it can't create a new near-duplicate catalog row |
 | `13_remove_tex_screw_dot_marker.sql` | One-time fix for TEX SCREWS `product.item` rows carrying a "⚫" marker - merges dot/plain duplicates and strips the dot, plus two unrelated GTR14/GTR1420 duplicate rows found at the same time |
-| `99_rollback.sql` / `06_rollback_functions.sql` / `07_rollback_import_sync.sql` | Remove the new tables / functions / trigger |
+| `14_gws_in_recent_arrivals.sql` | Adds `pallet.moved_to_gws_in_at` (stamped by `move_pallet` on entering GWS-IN) and exposes it on `stock_flat` as `gws_in_since`; adds `delete_expired_gws_in` (daily cron: clears GWS-IN stock older than 7 days) and `bulk_clear_stock` (Admin → Bulk Clear tool), both service key only |
+| `99_rollback.sql` / `06_rollback_functions.sql` / `07_rollback_import_sync.sql` / `14_rollback_gws_in_recent_arrivals.sql` | Remove the new tables / functions / trigger |
 
 Needs `SUPABASE_SERVICE_ROLE_KEY` (server only, never `NEXT_PUBLIC_`) in `.env.local` and in the host's environment settings.
 

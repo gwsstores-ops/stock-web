@@ -12,23 +12,36 @@ export type SearchResultRow = {
   item: string;
   size: string;
   qty: number | null;
+  gws_in_since: string | null;
 };
 
 type SearchResultsProps = {
   rows: SearchResultRow[];
 };
 
-const areas = ["GWS", "W3", "W4"];
+const RECENT_GWS_DAYS = 7;
+
+const areas = ["GWS-IN", "GWS", "W3", "W4"];
+
+const isRecentGwsIn = (row: SearchResultRow) => {
+  if (!row.gws_in_since) return false;
+  const ageMs = Date.now() - new Date(row.gws_in_since).getTime();
+  return ageMs <= RECENT_GWS_DAYS * 24 * 60 * 60 * 1000;
+};
 
 const areaIcon = (area: string) => {
+  if (area === "GWS-IN") return "/gws-floor-recent.png";
   if (area === "GWS") return "/gws.png";
   if (area === "W3") return "/w3.png";
   if (area === "W4") return "/w4.png";
   return "";
 };
 
+const sectionTitle = (area: string) =>
+  area === "GWS-IN" ? "RECENT MOVEMENT TO GWS (LAST 7 DAYS)" : areaLabel(area);
+
 const locationIcon = (area: string) =>
-  area === "GWS" ? "/icons/BAY.png" : "/icons/stack.png";
+  area === "GWS" || area === "GWS-IN" ? "/icons/BAY.png" : "/icons/stack.png";
 
 const getItemStyle = (item: string): CSSProperties => {
   if (item.toUpperCase().includes("HDG")) {
@@ -66,7 +79,9 @@ export default function SearchResults({ rows }: SearchResultsProps) {
     setMixModalRows([]);
   };
 
-  const filteredRows = rows.filter((row) => areas.includes(row.area));
+  const filteredRows = rows.filter(
+    (row) => areas.includes(row.area) && (row.area !== "GWS-IN" || isRecentGwsIn(row))
+  );
 
   if (filteredRows.length === 0) return null;
 
@@ -115,11 +130,11 @@ export default function SearchResults({ rows }: SearchResultsProps) {
                 <Image
                   src={areaIcon(area)}
                   className="area-icon"
-                  alt={areaLabel(area)}
+                  alt={sectionTitle(area)}
                   width={42}
                   height={42}
                 />
-                <div className="area-title">{areaLabel(area)}</div>
+                <div className="area-title">{sectionTitle(area)}</div>
                 <div className="area-count">
                   {grouped[area].length} location
                   {grouped[area].length === 1 ? "" : "s"}

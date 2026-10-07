@@ -18,6 +18,11 @@ const tools = [
     href: "/add-line",
     label: "Add Line",
     icon: "/icons/add-line-icon.svg"
+  },
+  {
+    href: "/admin/bulk-clear",
+    label: "Bulk Clear",
+    icon: "/icons/bulk-clear-icon.svg"
   }
 ];
 

@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/cron/expire-gws-in", "schedule": "0 3 * * *" }
+  ]
+}
