@@ -43,6 +43,17 @@ const sectionTitle = (area: string) =>
 const locationIcon = (area: string) =>
   area === "GWS" || area === "GWS-IN" ? "/icons/BAY.png" : "/icons/stack.png";
 
+const formatMovedAt = (value: string | null) => {
+  if (!value) return "—";
+  return new Date(value).toLocaleString([], {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+};
+
 const getItemStyle = (item: string): CSSProperties => {
   if (item.toUpperCase().includes("HDG")) {
     return { color: "#777" };
@@ -136,7 +147,7 @@ export default function SearchResults({ rows }: SearchResultsProps) {
                 />
                 <div className="area-title">{sectionTitle(area)}</div>
                 <div className="area-count">
-                  {grouped[area].length} location
+                  {grouped[area].length} {area === "GWS-IN" ? "pallet" : "location"}
                   {grouped[area].length === 1 ? "" : "s"}
                 </div>
               </div>
@@ -145,19 +156,24 @@ export default function SearchResults({ rows }: SearchResultsProps) {
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>
-                        <span className="location-header">
-                          <Image
-                            src={locationIcon(area)}
-                            className="location-icon"
-                            alt="Location"
-                            width={96}
-                            height={96}
-                          />
-                        </span>
-                      </th>
-                      <th>Pallet ID</th>
+                      {area === "GWS-IN" ? (
+                        <th>Pallet ID</th>
+                      ) : (
+                        <th>
+                          <span className="location-header">
+                            <Image
+                              src={locationIcon(area)}
+                              className="location-icon"
+                              alt="Location"
+                              width={96}
+                              height={96}
+                            />
+                          </span>
+                        </th>
+                      )}
+                      {area !== "GWS-IN" && <th>Pallet ID</th>}
                       <th>Qty</th>
+                      {area === "GWS-IN" && <th>Moved</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -169,7 +185,7 @@ export default function SearchResults({ rows }: SearchResultsProps) {
                       )
                       .map((row) => (
                         <tr key={row.id}>
-                          <td>{row.location ?? "—"}</td>
+                          {area !== "GWS-IN" && <td>{row.location ?? "—"}</td>}
                           <td>
                             {isMixPallet(row.pallet_id) ? (
                               <button
@@ -184,6 +200,7 @@ export default function SearchResults({ rows }: SearchResultsProps) {
                             )}
                           </td>
                           <td>{(row.qty ?? 0).toLocaleString()}</td>
+                          {area === "GWS-IN" && <td>{formatMovedAt(row.gws_in_since)}</td>}
                         </tr>
                       ))}
                   </tbody>
