@@ -181,6 +181,30 @@ export default function Page() {
     }
   };
 
+  const editLocationLocally = (id: number, value: string) => {
+    setOutstandingRows((prev) =>
+      prev.map((row) => (row.id === id ? { ...row, location: value } : row))
+    );
+  };
+
+  // Relocate matches by Pallet ID (same as Move's "same area" relocate), so a
+  // row with no Pallet ID yet has nothing to key the move off and is skipped.
+  const saveLocation = async (row: Row, value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed || !row.pallet_id) return;
+
+    const res = await fetch("/api/relocate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ location: row.pallet_id, newLocation: trimmed })
+    });
+
+    if (!res.ok) {
+      alert("Could not update location");
+      loadBoth();
+    }
+  };
+
   const exportNewLabelsCSV = () => {
     if (!newLabelRows || newLabelRows.length === 0) return;
 
@@ -438,7 +462,16 @@ export default function Page() {
                   )
                   .map((row) => (
                     <tr key={row.id}>
-                      <td>{row.location}</td>
+                      <td className="pallet-id">
+                        <input
+                          type="text"
+                          value={row.location}
+                          onChange={(e) => editLocationLocally(row.id, e.target.value)}
+                          onBlur={(e) => saveLocation(row, e.target.value)}
+                          aria-label={`Edit location for ${row.pallet_id ?? row.location}`}
+                          className="control"
+                        />
+                      </td>
                       <td className="pallet-id">
                         <input
                           type="text"
