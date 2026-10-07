@@ -45,13 +45,13 @@ const locationIcon = (area: string) =>
 
 const formatMovedAt = (value: string | null) => {
   if (!value) return "—";
-  return new Date(value).toLocaleString([], {
-    day: "2-digit",
-    month: "2-digit",
-    year: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+  const date = new Date(value);
+  const weekday = date.toLocaleDateString("en-GB", { weekday: "short" }).toUpperCase();
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = String(date.getFullYear()).slice(-2);
+  const time = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return `${weekday}. ${day}/${month}/${year} ${time}`;
 };
 
 const getItemStyle = (item: string): CSSProperties => {
