@@ -9,7 +9,7 @@
  * Text is measured, so a long item or size shrinks to stay on one line.
  */
 
-export const MAX_SIZES = 5;
+export const MAX_SIZES = 8;
 
 export type LabelInput = {
   item: string;

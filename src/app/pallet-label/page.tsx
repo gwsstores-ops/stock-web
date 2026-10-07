@@ -57,6 +57,28 @@ export default function PalletLabelPage() {
     setQtys((current) => current.map((q, i) => (i === index ? value : q)));
   };
 
+  // Inserts a blank size/qty row right after `index`, shifting later rows down.
+  const insertSizeAfter = (index: number) => {
+    setSizeCount((current) => Math.min(MAX_SIZES, current + 1));
+    setSizes((current) => [
+      ...current.slice(0, index + 1),
+      "",
+      ...current.slice(index + 1)
+    ].slice(0, MAX_SIZES));
+    setQtys((current) => [
+      ...current.slice(0, index + 1),
+      "",
+      ...current.slice(index + 1)
+    ].slice(0, MAX_SIZES));
+  };
+
+  // Removes the row at `index`, shifting later rows up.
+  const removeSizeAt = (index: number) => {
+    setSizeCount((current) => Math.max(1, current - 1));
+    setSizes((current) => [...current.slice(0, index), ...current.slice(index + 1), ""]);
+    setQtys((current) => [...current.slice(0, index), ...current.slice(index + 1), ""]);
+  };
+
   const handleDownload = async () => {
     if (!ready || building) return;
 
@@ -104,7 +126,7 @@ export default function PalletLabelPage() {
 
         <div className="field">
           <span className="field-label">How many sizes?</span>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {Array.from({ length: MAX_SIZES }, (_, i) => i + 1).map((count) => (
               <button
                 key={count}
@@ -112,7 +134,7 @@ export default function PalletLabelPage() {
                 onClick={() => setSizeCount(count)}
                 aria-pressed={sizeCount === count}
                 className={`button ${sizeCount === count ? "button-primary" : "button-secondary"}`}
-                style={{ flex: 1 }}
+                style={{ flex: "1 1 40px" }}
               >
                 {count}
               </button>
@@ -138,7 +160,7 @@ export default function PalletLabelPage() {
         </datalist>
 
         {activeSizes.map((size, index) => (
-          <div key={index} style={{ display: "flex", gap: 8, marginTop: 14 }}>
+          <div key={index} style={{ display: "flex", gap: 8, marginTop: 14, alignItems: "flex-end" }}>
             <label className="field" style={{ flex: 1 }}>
               <span className="field-label">
                 {sizeCount === 1 ? "Size" : `Size ${index + 1}`}
@@ -162,6 +184,29 @@ export default function PalletLabelPage() {
                 inputMode="numeric"
               />
             </label>
+            <button
+              type="button"
+              onClick={() => insertSizeAfter(index)}
+              disabled={sizeCount >= MAX_SIZES}
+              title="Insert a new size below this one"
+              aria-label="Insert a new size below this one"
+              className="button button-secondary"
+              style={{ width: 40, flex: "0 0 auto" }}
+            >
+              +
+            </button>
+            {sizeCount > 1 && (
+              <button
+                type="button"
+                onClick={() => removeSizeAt(index)}
+                title="Remove this size"
+                aria-label="Remove this size"
+                className="button button-secondary"
+                style={{ width: 40, flex: "0 0 auto" }}
+              >
+                ×
+              </button>
+            )}
           </div>
         ))}
 
