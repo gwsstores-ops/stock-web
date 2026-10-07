@@ -1,20 +1,26 @@
 /**
  * Draws the A4 pallet label as a PDF in the browser.
  *
- * Layout follows templates/label-template.docx: narrow margins, the item in
- * underlined bold capitals at the top (as large as fits the line, highlighted
- * grey when it contains HDG, or black with white text when it ends in SC), then one bold line per size (left
- * aligned, as big as the page allows but never larger than the item). The QR code, pallet ID and today's
- * date (dd-mm-yy) are pinned to the bottom of the page, with blank space between.
- * Text is measured, so a long item or size shrinks to stay on one line.
+ * Layout follows templates/label-template.docx: narrow margins, one or more items stacked
+ * top to bottom. Each item is printed in underlined bold capitals (as large as fits the line,
+ * highlighted grey when it contains HDG, or black with white text when it ends in SC), followed
+ * by one bold line per size (left aligned, as big as the page allows but never larger than its
+ * own item). The QR code, pallet ID and today's date (dd-mm-yy) are pinned to the bottom of the
+ * page, shared by every item, with blank space between. Text is measured, so a long item or size
+ * shrinks to stay on one line.
  */
 
 export const MAX_SIZES = 8;
+export const MAX_ITEMS = 5;
 
-export type LabelInput = {
+export type ItemEntry = {
   item: string;
   sizes: string[];
   qtys?: string[];
+};
+
+export type LabelInput = {
+  items: ItemEntry[];
   palletId: string;
   date?: Date;
 };
@@ -70,22 +76,37 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
     import("qrcode")
   ]);
 
-  const item = input.item.trim().toUpperCase();
   const palletId = input.palletId.trim().toUpperCase();
-  const rawQtys = input.qtys ?? [];
-  const sizeEntries = input.sizes
-    .map((s, i) => ({ size: s.trim().toUpperCase(), qty: (rawQtys[i] ?? "").trim() }))
-    .filter((entry) => entry.size !== "");
-  const sizes = sizeEntries.map((entry) => entry.size);
-  const qtys = sizeEntries.map((entry) => entry.qty);
   const date = formatLabelDate(input.date ?? new Date());
 
-  if (!item || !palletId || sizes.length === 0 || sizes.length > MAX_SIZES) {
-    throw new Error("Item, at least one size and a pallet ID are required");
+  const items = input.items
+    .map((entry) => {
+      const name = entry.item.trim().toUpperCase();
+      const rawQtys = entry.qtys ?? [];
+      const sizeEntries = entry.sizes
+        .map((s, i) => ({ size: s.trim().toUpperCase(), qty: (rawQtys[i] ?? "").trim() }))
+        .filter((e) => e.size !== "");
+      return { name, sizes: sizeEntries.map((e) => e.size), qtys: sizeEntries.map((e) => e.qty) };
+    })
+    .filter((entry) => entry.name !== "" && entry.sizes.length > 0);
+
+  if (
+    !palletId ||
+    items.length === 0 ||
+    items.length > MAX_ITEMS ||
+    items.some((entry) => entry.sizes.length > MAX_SIZES)
+  ) {
+    throw new Error("At least one item with a size, and a pallet ID, are required");
   }
 
+  const totalSizes = items.reduce((n, entry) => n + entry.sizes.length, 0);
+
   // The built-in PDF fonts only cover Latin-1; anything else would print as garbage
-  for (const text of [item, palletId, ...sizes, ...qtys.filter(Boolean)]) {
+  const allText = [
+    palletId,
+    ...items.flatMap((entry) => [entry.name, ...entry.sizes, ...entry.qtys.filter(Boolean)])
+  ];
+  for (const text of allText) {
     const bad = [...text].find((ch) => ch.charCodeAt(0) > 0xff);
     if (bad) {
       throw new Error(`"${bad}" can't be printed on the label. Remove it and try again.`);
@@ -125,19 +146,29 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
     return width > CONTENT_W ? Math.max(20, (max * CONTENT_W) / width) : max;
   };
 
-  const itemPt = fill(item, ITEM_MAX_PT);
+  const itemPts = items.map((entry) => fill(entry.name, ITEM_MAX_PT));
   const palletPt = fit(palletId, PALLET_PT);
 
   // QR code, pallet ID and date sit together at the bottom of the page
   const bottomHeight = QR_PT + palletPt * LINE_EM + GAP_PT + DATE_PT * LINE_EM;
   const bottomTop = PAGE_H - MARGIN - bottomHeight;
 
-  // Space for the size lines: between the item and the bottom block
-  const sizesTop = MARGIN + itemPt * LINE_EM + GAP_PT;
-  const sizesRoom = bottomTop - GAP_PT - sizesTop;
-  const heightCapPt = sizesRoom / sizes.length / LINE_EM;
-  const sizePts = sizes.map((s, i) =>
-    Math.max(SIZE_MIN_PT, Math.min(fitSize(s, qtys[i], SIZE_MAX_PT), heightCapPt, itemPt))
+  // Space for the items: between the top margin and the bottom block
+  const contentRoom = bottomTop - GAP_PT - MARGIN;
+
+  // Fixed space taken by the item headings themselves and the gaps around them:
+  // one gap below each heading (before its sizes), plus one gap between each pair of items
+  const headingsHeight = itemPts.reduce((sum, pt) => sum + pt * LINE_EM, 0);
+  const fixedHeight = headingsHeight + GAP_PT * items.length + GAP_PT * Math.max(0, items.length - 1);
+
+  // What's left is shared evenly across every size line, across all items
+  const sizesRoom = contentRoom - fixedHeight;
+  const heightCapPt = sizesRoom / totalSizes / LINE_EM;
+
+  const sizePtsByItem = items.map((entry, i) =>
+    entry.sizes.map((s, j) =>
+      Math.max(SIZE_MIN_PT, Math.min(fitSize(s, entry.qtys[j], SIZE_MAX_PT), heightCapPt, itemPts[i]))
+    )
   );
 
   let y = MARGIN;
@@ -203,10 +234,12 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
     y += pt * LINE_EM;
   };
 
-  drawLine(item, itemPt, "center", true, highlightFor(item));
-
-  y = sizesTop;
-  sizes.forEach((size, i) => drawSizeLine(size, qtys[i], sizePts[i]));
+  items.forEach((entry, i) => {
+    if (i > 0) y += GAP_PT;
+    drawLine(entry.name, itemPts[i], "center", true, highlightFor(entry.name));
+    y += GAP_PT;
+    entry.sizes.forEach((size, j) => drawSizeLine(size, entry.qtys[j], sizePtsByItem[i][j]));
+  });
 
   y = bottomTop;
 
