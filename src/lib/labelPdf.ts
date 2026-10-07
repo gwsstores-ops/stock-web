@@ -99,8 +99,6 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
     throw new Error("At least one item with a size, and a pallet ID, are required");
   }
 
-  const totalSizes = items.reduce((n, entry) => n + entry.sizes.length, 0);
-
   // The built-in PDF fonts only cover Latin-1; anything else would print as garbage
   const allText = [
     palletId,
@@ -146,30 +144,36 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
     return width > CONTENT_W ? Math.max(20, (max * CONTENT_W) / width) : max;
   };
 
-  const itemPts = items.map((entry) => fill(entry.name, ITEM_MAX_PT));
+  // Each item's natural size, as if it had the whole page to itself: as large as its text
+  // allows, up to the usual max. A size never outgrows its own item's heading.
+  const itemNaturalPts = items.map((entry) => fill(entry.name, ITEM_MAX_PT));
+  const sizeNaturalPtsByItem = items.map((entry, i) =>
+    entry.sizes.map((s, j) => Math.min(fitSize(s, entry.qtys[j], SIZE_MAX_PT), itemNaturalPts[i]))
+  );
+
   const palletPt = fit(palletId, PALLET_PT);
 
   // QR code, pallet ID and date sit together at the bottom of the page
   const bottomHeight = QR_PT + palletPt * LINE_EM + GAP_PT + DATE_PT * LINE_EM;
   const bottomTop = PAGE_H - MARGIN - bottomHeight;
 
-  // Space for the items: between the top margin and the bottom block
+  // Space for the items: between the top margin and the bottom block, minus the gap below
+  // each heading and the gap between each pair of items
   const contentRoom = bottomTop - GAP_PT - MARGIN;
+  const gaps = GAP_PT * items.length + GAP_PT * Math.max(0, items.length - 1);
+  const roomForText = contentRoom - gaps;
 
-  // Fixed space taken by the item headings themselves and the gaps around them:
-  // one gap below each heading (before its sizes), plus one gap between each pair of items
-  const headingsHeight = itemPts.reduce((sum, pt) => sum + pt * LINE_EM, 0);
-  const fixedHeight = headingsHeight + GAP_PT * items.length + GAP_PT * Math.max(0, items.length - 1);
+  const naturalTextHeight =
+    itemNaturalPts.reduce((sum, pt) => sum + pt * LINE_EM, 0) +
+    sizeNaturalPtsByItem.reduce((sum, pts) => sum + pts.reduce((s, pt) => s + pt * LINE_EM, 0), 0);
 
-  // What's left is shared evenly across every size line, across all items
-  const sizesRoom = contentRoom - fixedHeight;
-  const heightCapPt = sizesRoom / totalSizes / LINE_EM;
+  // If everything drawn at its natural size would overflow the page, shrink every item
+  // heading and size line together by the same proportion, so items stay slightly larger
+  // than their own sizes no matter how many items or sizes are on the label
+  const scale = naturalTextHeight > roomForText ? roomForText / naturalTextHeight : 1;
 
-  const sizePtsByItem = items.map((entry, i) =>
-    entry.sizes.map((s, j) =>
-      Math.max(SIZE_MIN_PT, Math.min(fitSize(s, entry.qtys[j], SIZE_MAX_PT), heightCapPt, itemPts[i]))
-    )
-  );
+  const itemPts = itemNaturalPts.map((pt) => Math.max(SIZE_MIN_PT, pt * scale));
+  const sizePtsByItem = sizeNaturalPtsByItem.map((pts) => pts.map((pt) => Math.max(SIZE_MIN_PT, pt * scale)));
 
   let y = MARGIN;
 
