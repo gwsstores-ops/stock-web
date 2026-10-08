@@ -23,6 +23,11 @@ const tools = [
     href: "/admin/bulk-clear",
     label: "Bulk Clear",
     icon: "/icons/bulk-clear-icon.svg"
+  },
+  {
+    href: "/admin/floor-to-gws",
+    label: "Floor To GWS",
+    icon: "/icons/move_gws.png"
   }
 ];
 
