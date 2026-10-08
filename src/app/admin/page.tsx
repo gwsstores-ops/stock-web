@@ -28,6 +28,11 @@ const tools = [
     href: "/admin/floor-to-gws",
     label: "Floor To GWS",
     icon: "/icons/move_gws.png"
+  },
+  {
+    href: "/admin/clean-locations",
+    label: "Clean Locations",
+    icon: "/icons/BAY.png"
   }
 ];
 
