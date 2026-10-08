@@ -40,7 +40,7 @@ const DATE_PT = 66;
 const SIZE_MAX_PT = 200;
 const SIZE_MIN_PT = 20;
 
-const QR_PT = 110;
+const QR_PT = 55;
 
 type Rgb = [number, number, number];
 type Highlight = { fill: Rgb; text: Rgb };
