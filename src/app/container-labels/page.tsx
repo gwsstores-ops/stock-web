@@ -339,7 +339,7 @@ export default function ContainerLabelsPage() {
               <thead>
                 <tr>
                   <th>Pallet</th>
-                  <th>Location</th>
+                  <th>Pallet ID</th>
                   <th>Category</th>
                   <th>Item</th>
                   <th>Diam</th>
