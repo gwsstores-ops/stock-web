@@ -20,7 +20,6 @@ export const CSV_HEADER = [
   "qty",
   "diam_display",
   "length_display",
-  "NOTE",
   "PO"
 ];
 
@@ -77,7 +76,6 @@ export const toCsv = (rows: ContainerRow[], cont: string): string => {
       row.qty === null ? "" : String(row.qty),
       row.diamDisplay,
       row.lengthDisplay,
-      row.location,
       row.po
     ]
       .map(escapeCell)
