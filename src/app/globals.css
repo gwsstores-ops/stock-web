@@ -1157,8 +1157,15 @@ select.control,
   line-height: 1.4;
 }
 
+/* The raw packing-list text behind a flagged line can run long (a whole
+   wrapped multi-line description, say) - clamped to a few lines so it can't
+   stretch the row's other, normally short, cells into a tall blank gap. The
+   full text is still available via the span's title tooltip. */
 .row-source {
-  display: block;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
   font-weight: 600;
   color: var(--ink-500);
 }

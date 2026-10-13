@@ -455,7 +455,10 @@ export default function ContainerLabelsPage() {
                       {row.review.length > 0 && (
                         <>
                           {row.review.join("; ")}
-                          <span className="row-source">
+                          <span
+                            className="row-source"
+                            title={`${row.description} ${row.rawSize}`.trim()}
+                          >
                             {row.description} {row.rawSize}
                           </span>
                         </>
