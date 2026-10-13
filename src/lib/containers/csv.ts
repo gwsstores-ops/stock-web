@@ -1,11 +1,17 @@
 import type { ContainerRow, ParsedLine } from "./types";
 import { padPallet, toCsvNumber } from "./rules";
 
+// Matches stock_import_sync()'s reading of the old `stock` table: `location`
+// is the bay a pallet sits in (every freshly landed pallet sits in the
+// CONTAINER bay, regardless of which container it came off), and `pallet_id`
+// is the pallet's own label - container reference + pallet number, eg
+// YF701_01 - which is what used to be written under `location` here.
 export const CSV_HEADER = [
   "area",
   "cont",
   "pal",
   "location",
+  "pallet_id",
   "cat",
   "item",
   "diam_value",
@@ -61,6 +67,7 @@ export const toCsv = (rows: ContainerRow[], cont: string): string => {
       "CONTAINER",
       cont,
       row.pal,
+      "CONTAINER",
       row.location,
       row.cat ?? "",
       row.item ?? "",
