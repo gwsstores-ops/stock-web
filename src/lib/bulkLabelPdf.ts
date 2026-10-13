@@ -8,11 +8,18 @@
  * corner, and a QR code / pallet id / date strip pinned to the foot of each
  * label's half of the page.
  *
+ * Every position below (baseline y offsets, x positions, font sizes) is
+ * copied from measuring SUPPLIER TEMPLATES/YF849 LABELS.pdf's own text
+ * layer directly, rather than computed - the reference lays every field out
+ * at a fixed spot and only ever shrinks a line's font when its own text is
+ * too wide to fit, never to make room for anything else on the label.
+ *
  * A pallet that carries more than one product (a MIX pallet) gets one full
  * label per product rather than squeezing them into one slot: each copy
  * shows the bare pallet number in the diamond plus a small "MIX-n" tag
  * beside it, and the pallet id in the footer splits onto two lines, eg
- * "YF849_06" / "(MIX-2)".
+ * "YF849_06" / "(MIX-2)" - the diamond and date stay exactly where they'd
+ * be for a plain pallet; only the footer's own height grows.
  */
 import type { ContainerRow } from "./containers/types";
 import {
@@ -21,7 +28,6 @@ import {
   CONTENT_W,
   LINE_EM,
   MARGIN,
-  PAGE_H,
   PAGE_W,
   formatLabelDate,
   highlightFor
@@ -30,30 +36,42 @@ import {
 type Doc = InstanceType<typeof import("jspdf").jsPDF>;
 
 const LABELS_PER_PAGE = 2;
-const SLOT_H = (PAGE_H - MARGIN * 2) / LABELS_PER_PAGE;
+/** The vertical rhythm between one label's fields and the next label's - not half the page (there's a bit of unused margin top and bottom). */
+const SLOT_H = 406.85;
 
-const ITEM_MAX_PT = 92;
+const ITEM_BASELINE_Y = 74.46;
+const ITEM_MAX_PT = 91.15;
+const ITEM_CENTER_X = 268;
+
+const SIZE_BASELINE_Y = 181.73;
 const SIZE_MAX_PT = 104;
-const QTY_MAX_PT = 72;
-const BLOCK_MIN_PT = 16;
-const ITEM_SIZE_GAP_PT = 10;
+const SIZE_CENTER_X = 239;
 
+const QTY_BASELINE_Y = 246.47;
+const QTY_MAX_PT = 72;
+const QTY_EQUALS_X = 117.37;
+const QTY_VALUE_X = 179.19;
+
+const DIAMOND_CX = 501;
+const DIAMOND_CY = 243.53;
 const DIAMOND_RX = 42;
 const DIAMOND_RY = 38;
-const DIAMOND_MAX_PT = 48;
+const DIAMOND_MAX_PT = 52;
 
-const MIX_TAG_PT = 20;
+const MIX_TAG_PT = 22;
 const MIX_TAG_PAD_X = 8;
 const MIX_TAG_PAD_Y = 5;
-const MIX_TAG_GAP_PT = 10;
+const MIX_TAG_GAP_PT = 3;
 
-const ID_PT = 32;
-const DATE_PT = 36;
-const QR_PT = 46;
-const FOOTER_GAP_PT = 10;
-const FOOTER_PAD_PT = 10;
+const ID_PT = 34;
+const FOOTER_ID_BASELINE_Y = 375.05;
+const FOOTER_ID_BASELINE_Y_MIX: [number, number] = [341.52, 382.32];
+const FOOTER_DATE_BASELINE_Y = 383.47;
+const DATE_PT = 40;
+const QR_PT = 40;
 
 const HIGHLIGHT_PAD_PT = 6;
+const BLOCK_MIN_PT = 16;
 
 const QTY_FORMAT = new Intl.NumberFormat("en-IE");
 
@@ -93,11 +111,17 @@ export const buildBulkLabelPdf = async (rows: ContainerRow[], date?: Date): Prom
   return doc.output("blob");
 };
 
+/** The largest font, up to `max`, that keeps `text` within `width` - shrinks only when the text itself would otherwise overflow. */
 const fit = (doc: Doc, text: string, max: number, width: number) => {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(max);
   const measured = doc.getTextWidth(text);
   return measured > width ? Math.max(BLOCK_MIN_PT, (max * width) / measured) : max;
+};
+
+const drawCentered = (doc: Doc, text: string, pt: number, centerX: number, baselineY: number) => {
+  doc.setFontSize(pt);
+  doc.text(text, centerX, baselineY, { align: "center" });
 };
 
 const drawHighlightBar = (doc: Doc, text: string, pt: number, x: number, y: number, highlight: NonNullable<ReturnType<typeof highlightFor>>) => {
@@ -152,46 +176,26 @@ const drawSlot = async (doc: Doc, QRCode: typeof import("qrcode"), row: Containe
   const item = (row.item ?? "").trim().toUpperCase();
   const size = row.size.trim().toUpperCase();
   const qty = row.qty ?? 0;
+  const qtyText = QTY_FORMAT.format(qty);
 
   const mixMatch = row.pal.match(MIX_PALLET_PATTERN);
   const palletLabel = mixMatch ? mixMatch[1] : row.pal;
   const mixLabel = mixMatch ? mixMatch[2] : null;
 
-  // The pallet id's own MIX suffix (eg "(MIX-2)") is split onto a second
-  // footer line rather than run on with the rest of the id.
-  const idLines = mixMatch
-    ? [row.location.replace(/\s*\(MIX-\d+\)$/, "").toUpperCase(), `(${mixMatch[2]})`]
-    : [row.location.toUpperCase()];
-
-  const footerTextH = ID_PT * LINE_EM * idLines.length;
-  const footerH = Math.max(QR_PT, footerTextH);
-
-  const naturalItemPt = fit(doc, item, ITEM_MAX_PT, CONTENT_W);
-  const naturalSizePt = fit(doc, size, SIZE_MAX_PT, CONTENT_W);
-  const naturalQtyPt = fit(doc, `= ${QTY_FORMAT.format(qty)}`, QTY_MAX_PT, CONTENT_W);
-
-  const naturalTextHeight = (naturalItemPt + naturalSizePt + naturalQtyPt) * LINE_EM;
-  const fixedGaps = ITEM_SIZE_GAP_PT * 2;
-  const roomForText = SLOT_H - footerH - FOOTER_GAP_PT - FOOTER_PAD_PT * 2 - fixedGaps;
-  const scale = naturalTextHeight > roomForText ? roomForText / naturalTextHeight : 1;
-
-  const itemPt = Math.max(BLOCK_MIN_PT, naturalItemPt * scale);
-  const sizePt = Math.max(BLOCK_MIN_PT, naturalSizePt * scale);
-  const qtyPt = Math.max(BLOCK_MIN_PT, naturalQtyPt * scale);
-
-  let y = slotTop + FOOTER_PAD_PT;
-
+  // Item heading: bold, underlined, centered on ITEM_CENTER_X (not the page
+  // centre - that leaves the diamond's corner clear).
   const highlight = highlightFor(item);
+  const itemPt = fit(doc, item, ITEM_MAX_PT, CONTENT_W);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(itemPt);
   const itemWidth = doc.getTextWidth(item);
-  const itemX = MARGIN + (CONTENT_W - itemWidth) / 2;
-  const itemBaseline = y + itemPt * BASELINE_EM;
+  const itemX = ITEM_CENTER_X - itemWidth / 2;
+  const itemBaseline = slotTop + ITEM_BASELINE_Y;
 
-  if (highlight) drawHighlightBar(doc, item, itemPt, itemX, y, highlight);
+  if (highlight) drawHighlightBar(doc, item, itemPt, itemX, itemBaseline - itemPt * BASELINE_EM, highlight);
 
   doc.setTextColor(...(highlight?.text ?? [0, 0, 0]));
-  doc.text(item, PAGE_W / 2, itemBaseline, { align: "center" });
+  drawCentered(doc, item, itemPt, ITEM_CENTER_X, itemBaseline);
 
   const underlineY = itemBaseline + itemPt * 0.09;
   doc.setDrawColor(...(highlight?.text ?? [0, 0, 0]));
@@ -200,37 +204,41 @@ const drawSlot = async (doc: Doc, QRCode: typeof import("qrcode"), row: Containe
   doc.setDrawColor(0, 0, 0);
   doc.setTextColor(0, 0, 0);
 
-  y += itemPt * LINE_EM + ITEM_SIZE_GAP_PT;
+  // Size: centered on SIZE_CENTER_X.
+  const sizePt = fit(doc, size, SIZE_MAX_PT, CONTENT_W);
+  drawCentered(doc, size, sizePt, SIZE_CENTER_X, slotTop + SIZE_BASELINE_Y);
 
-  doc.setFontSize(sizePt);
-  doc.text(size, MARGIN, y + sizePt * BASELINE_EM);
-  y += sizePt * LINE_EM + ITEM_SIZE_GAP_PT;
-
+  // "= qty": the equals sign and the value sit at their own fixed columns,
+  // not centered as one unit.
+  const qtyPt = fit(doc, qtyText, QTY_MAX_PT, PAGE_W - MARGIN - QTY_VALUE_X);
+  const qtyBaseline = slotTop + QTY_BASELINE_Y;
+  doc.setFontSize(QTY_MAX_PT);
+  doc.text("=", QTY_EQUALS_X, qtyBaseline);
   doc.setFontSize(qtyPt);
-  doc.text(`= ${QTY_FORMAT.format(qty)}`, MARGIN, y + qtyPt * BASELINE_EM);
-  const diamondCy = y + (qtyPt * LINE_EM) / 2;
-  y += qtyPt * LINE_EM;
+  doc.text(qtyText, QTY_VALUE_X, qtyBaseline);
 
-  const diamondCx = PAGE_W - MARGIN - DIAMOND_RX;
-  drawDiamond(doc, diamondCx, diamondCy, palletLabel);
-  if (mixLabel) drawMixTag(doc, diamondCx, diamondCy, mixLabel);
+  const diamondCy = slotTop + DIAMOND_CY;
+  drawDiamond(doc, DIAMOND_CX, diamondCy, palletLabel);
+  if (mixLabel) drawMixTag(doc, DIAMOND_CX, diamondCy, mixLabel);
 
-  // Footer: QR code, pallet id and today's date, pinned to the foot of the slot.
-  const footerY = slotTop + SLOT_H - footerH;
+  // Footer: pallet id (one line, or two for a MIX pallet), QR code and date.
+  const idLines = mixMatch
+    ? [row.location.replace(/\s*\(MIX-\d+\)$/, "").toUpperCase(), `(${mixMatch[2]})`]
+    : [row.location.toUpperCase()];
+  const idBaselines = mixMatch ? FOOTER_ID_BASELINE_Y_MIX : [FOOTER_ID_BASELINE_Y];
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(ID_PT);
   const idWidth = Math.max(...idLines.map((line) => doc.getTextWidth(line)));
   const barWidth = idWidth + HIGHLIGHT_PAD_PT * 2 + QR_PT + 6;
+  const barTop = slotTop + idBaselines[0] - ID_PT * BASELINE_EM - 4;
+  const barBottom = slotTop + idBaselines[idBaselines.length - 1] + ID_PT * (1 - BASELINE_EM) + 4;
 
   doc.setFillColor(0, 0, 0);
-  doc.rect(MARGIN, footerY, barWidth, footerH, "F");
+  doc.rect(MARGIN, barTop, barWidth, barBottom - barTop, "F");
 
   doc.setTextColor(255, 255, 255);
-  idLines.forEach((line, i) => {
-    const lineY = footerY + footerH / 2 + (i - (idLines.length - 1) / 2) * ID_PT * LINE_EM + ID_PT * 0.32;
-    doc.text(line, MARGIN + HIGHLIGHT_PAD_PT, lineY);
-  });
+  idLines.forEach((line, i) => doc.text(line, MARGIN + HIGHLIGHT_PAD_PT, slotTop + idBaselines[i]));
   doc.setTextColor(0, 0, 0);
 
   const qr = await QRCode.toDataURL(row.location.toUpperCase(), {
@@ -238,9 +246,9 @@ const drawSlot = async (doc: Doc, QRCode: typeof import("qrcode"), row: Containe
     width: 300,
     errorCorrectionLevel: "M"
   });
-  doc.addImage(qr, "PNG", MARGIN + idWidth + HIGHLIGHT_PAD_PT * 2, footerY + (footerH - QR_PT) / 2, QR_PT, QR_PT);
+  doc.addImage(qr, "PNG", MARGIN + idWidth + HIGHLIGHT_PAD_PT * 2, (barTop + barBottom - QR_PT) / 2, QR_PT, QR_PT);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(DATE_PT);
-  doc.text(dateText, PAGE_W - MARGIN, footerY + footerH / 2 + DATE_PT * 0.32, { align: "right" });
+  doc.text(dateText, PAGE_W - MARGIN, slotTop + FOOTER_DATE_BASELINE_Y, { align: "right" });
 };
