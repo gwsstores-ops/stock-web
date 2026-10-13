@@ -4,11 +4,11 @@
 export const finishSuffix = (description: string): string | null => {
   const upper = description.toUpperCase();
 
-  if (/HOT\s*DIP\s*GALV/.test(upper)) return "HDG";
+  if (/HOT\s*DIP\s*GALV|\bHDG\b/.test(upper)) return "HDG";
   if (/SPUN\s*GALV/.test(upper)) return "SPUN";
   if (/ELECTRO\s*ZINC|ZINC\s*PLATED|\bZP\b/.test(upper)) return "ZP";
   if (/STAINLESS|\bA2\b|\bA4\b|\bSS\b/.test(upper)) return "SS";
-  if (/SELF\s*COLOU?R|\bPLAIN\b|BLACK\s*FINISH/.test(upper)) return "SC";
+  if (/SELF\s*COLOU?R|\bPLAIN\b|BLACK\s*FINISH|BLACK\s*OXIDE/.test(upper)) return "SC";
 
   return null;
 };
