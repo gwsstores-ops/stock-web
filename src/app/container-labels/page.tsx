@@ -6,6 +6,7 @@ import { extractPdf, type ExtractProgress } from "@/lib/containers/extract";
 import { buildRows, toCsv } from "@/lib/containers/csv";
 import { findSupplier, SUPPLIERS } from "@/lib/containers/suppliers";
 import type { ParsedLine } from "@/lib/containers/types";
+import { buildBulkLabelPdf } from "@/lib/bulkLabelPdf";
 
 type Vocab = {
   cats: string[];
@@ -25,6 +26,8 @@ export default function ContainerLabelsPage() {
   const [reading, setReading] = useState(false);
   const [error, setError] = useState("");
   const [vocab, setVocab] = useState<Vocab>(emptyVocab);
+  const [labelsBuilding, setLabelsBuilding] = useState(false);
+  const [labelsError, setLabelsError] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -106,6 +109,30 @@ export default function ContainerLabelsPage() {
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadLabels = async () => {
+    if (labelsBuilding) return;
+
+    setLabelsBuilding(true);
+    setLabelsError("");
+
+    try {
+      const blob = await buildBulkLabelPdf(rows);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = `${contRef}_labels.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setLabelsError(err instanceof Error ? err.message : "Could not make the labels");
+    } finally {
+      setLabelsBuilding(false);
+    }
   };
 
   const handleReset = () => {
@@ -262,14 +289,27 @@ export default function ContainerLabelsPage() {
               </h2>
             </div>
 
-            <button
-              type="button"
-              className="button button-primary"
-              onClick={handleDownload}
-            >
-              Download {contRef}.csv
-            </button>
+            <div className="button-row">
+              <button
+                type="button"
+                className="button button-primary"
+                onClick={handleDownload}
+              >
+                Download {contRef}.csv
+              </button>
+
+              <button
+                type="button"
+                className="button"
+                onClick={handleDownloadLabels}
+                disabled={labelsBuilding}
+              >
+                {labelsBuilding ? "Making labels..." : "Download pallet labels"}
+              </button>
+            </div>
           </div>
+
+          {labelsError && <p className="search-error">{labelsError}</p>}
 
           {ocrPages.length > 0 && (
             <p className="helper-text">

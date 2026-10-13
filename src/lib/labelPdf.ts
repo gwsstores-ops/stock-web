@@ -26,10 +26,10 @@ export type LabelInput = {
 };
 
 // A4 portrait, in points
-const PAGE_W = 595.28;
-const PAGE_H = 841.89;
-const MARGIN = 21.6;
-const CONTENT_W = PAGE_W - MARGIN * 2;
+export const PAGE_W = 595.28;
+export const PAGE_H = 841.89;
+export const MARGIN = 21.6;
+export const CONTENT_W = PAGE_W - MARGIN * 2;
 
 // The item grows to fill the line, up to this font size
 const ITEM_MAX_PT = 200;
@@ -42,25 +42,25 @@ const SIZE_MIN_PT = 20;
 
 const QR_PT = 55;
 
-type Rgb = [number, number, number];
-type Highlight = { fill: Rgb; text: Rgb };
+export type Rgb = [number, number, number];
+export type Highlight = { fill: Rgb; text: Rgb };
 
-const HIGHLIGHT_PAD_PT = 6;
-const GREY_HIGHLIGHT: Highlight = { fill: [185, 185, 185], text: [0, 0, 0] };
-const BLACK_HIGHLIGHT: Highlight = { fill: [0, 0, 0], text: [255, 255, 255] };
+export const HIGHLIGHT_PAD_PT = 6;
+export const GREY_HIGHLIGHT: Highlight = { fill: [185, 185, 185], text: [0, 0, 0] };
+export const BLACK_HIGHLIGHT: Highlight = { fill: [0, 0, 0], text: [255, 255, 255] };
 
 // Items ending in SC: black with white text. Items containing HDG: grey.
 // SC wins when an item is both, as it is the more specific rule.
-const highlightFor = (item: string): Highlight | null => {
+export const highlightFor = (item: string): Highlight | null => {
   if (/\bSC$/.test(item)) return BLACK_HIGHLIGHT;
   if (item.includes("HDG")) return GREY_HIGHLIGHT;
   return null;
 };
 
 // Height of a line of text as a fraction of its font size
-const LINE_EM = 1.15;
+export const LINE_EM = 1.15;
 // Baseline position within a line box, as a fraction of the font size
-const BASELINE_EM = 0.92;
+export const BASELINE_EM = 0.92;
 const GAP_PT = 12;
 
 export function formatLabelDate(date: Date) {
