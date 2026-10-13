@@ -102,6 +102,12 @@ const classify = (type: string, grade: string, surface: string): Classified => {
     return { cat: "ASSEMBLED", item: finish ? `ASS ${finish}` : null, review };
   }
 
+  // A square-neck holding-down bolt plus its nut, eg "1PCS BS7419 SQ SQ
+  // BOLT/1PCS ISO4032" - same HDB naming as GDPA's SQ.SQ. BOLT.
+  if (upperType.includes("SQSQBOLT") || upperType.includes("BS7419")) {
+    return { cat: "HOLDING DOWN BOLTS", item: finish ? `HDB ${finish}` : null, review };
+  }
+
   if (upperType.includes("DIN960") && !upperType.includes("DIN931") && !upperType.includes("DIN933")) {
     return { cat: "BOLTS", item: finish ? `DIN960 ${grade} ${finish}` : null, review };
   }
@@ -269,7 +275,7 @@ export const yonghi: SupplierRules = {
   ready: true,
   notes: [
     "One row per line item, read from the PALLET NO., ORDER NO., Type, Grade, Surface, SIZE and QTY/PCS columns.",
-    "1PCS DIN931/1PCS DIN934 and 1PCS DIN933/1PCS DIN934 (a hex bolt plus nut) both become BOLTS / BOLT. 1PCS ISO4017/1PCS ISO4032/1PCS ISO7091 (bolt, nut and washer together) becomes ASSEMBLED / ASS. A standalone DIN960 (no nut) becomes BOLTS / DIN960, with its Grade column kept in the item name since this supplier only sends it at a grade other than the usual 8.8.",
+    "1PCS DIN931/1PCS DIN934 and 1PCS DIN933/1PCS DIN934 (a hex bolt plus nut) both become BOLTS / BOLT. 1PCS ISO4017/1PCS ISO4032/1PCS ISO7091 (bolt, nut and washer together) becomes ASSEMBLED / ASS. A standalone DIN960 (no nut) becomes BOLTS / DIN960, with its Grade column kept in the item name since this supplier only sends it at a grade other than the usual 8.8. 1PCS BS7419 SQ SQ BOLT/1PCS ISO4032 (a square-neck holding-down bolt plus nut) becomes HOLDING DOWN BOLTS / HDB - the same naming GDPA's SQ.SQ. BOLT rule uses.",
     "The finish suffix comes from the Surface column: HDG stays HDG, ZP stays ZP, black oxide becomes SC.",
     "Sizes read as diameter X length, eg M20X375 becomes 20 X 375. A fine-thread size prints as diameter X pitch X length, eg M24X2X230 - the middle pitch figure is dropped, giving 24 X 230.",
     "PO is the ORDER NO. column exactly as printed, eg PO000004026 - not stripped to bare digits like some other suppliers' rules.",
