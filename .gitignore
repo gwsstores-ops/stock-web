@@ -45,3 +45,6 @@ next-env.d.ts
 
 # local data backups
 backups/
+
+# Google Drive for Desktop's own upload staging folder
+.tmp.driveupload/
