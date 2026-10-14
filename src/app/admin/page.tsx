@@ -15,6 +15,11 @@ const tools = [
     icon: "/icons/cert-combine.svg"
   },
   {
+    href: "/admin/cert-editor",
+    label: "Cert Editor",
+    icon: "/icons/cert-editor.svg"
+  },
+  {
     href: "/add-line",
     label: "Add Line",
     icon: "/icons/add-line-icon.svg"

@@ -1169,3 +1169,13 @@ select.control,
   font-weight: 600;
   color: var(--ink-500);
 }
+
+.cert-preview {
+  display: block;
+  width: 100%;
+  max-width: 900px;
+  margin: 16px auto 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
