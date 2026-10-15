@@ -43,6 +43,11 @@ const tools = [
     href: "/admin/containers",
     label: "Containers",
     icon: "/icons/container.png"
+  },
+  {
+    href: "/admin/pdf-sorter",
+    label: "PDF Sorter",
+    icon: "/icons/pdf-sorter.svg"
   }
 ];
 
