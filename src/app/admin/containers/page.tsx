@@ -6,7 +6,7 @@ import { findPort } from "@/lib/containers/ports";
 import { emptyTrackingRow, type TrackingRow } from "@/lib/containers/tracking";
 import { parseTrackingRows, readTrackingWords } from "@/lib/containers/trackingOcr";
 
-type MapEntry = { container: string; supplierRef: string; updatedAt: string };
+type MapEntry = { id: number; container: string; supplierRef: string; updatedAt: string };
 
 export default function AdminContainersPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -45,10 +45,17 @@ export default function AdminContainersPage() {
     loadMap();
   }, []);
 
-  const mapByContainer = useMemo(
-    () => new Map(map.map((entry) => [entry.container, entry.supplierRef])),
-    [map]
-  );
+  // A container can have more than one supplier ref recorded - they are
+  // combined with " + " to prefill the review table's single text field.
+  const mapByContainer = useMemo(() => {
+    const grouped = new Map<string, string[]>();
+    for (const entry of map) {
+      const refs = grouped.get(entry.container) ?? [];
+      refs.push(entry.supplierRef);
+      grouped.set(entry.container, refs);
+    }
+    return new Map(Array.from(grouped, ([container, refs]) => [container, refs.join(" + ")]));
+  }, [map]);
 
   const handleRead = async () => {
     if (!file) return;
@@ -147,17 +154,33 @@ export default function AdminContainersPage() {
     }
   };
 
-  const deleteMapping = async (container: string) => {
+  const updateMapping = async (id: number, container: string, supplierRef: string) => {
+    setMapError("");
+    try {
+      const res = await fetch("/api/container-map", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, container, supplierRef })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Save failed");
+      loadMap();
+    } catch (err) {
+      setMapError(err instanceof Error ? err.message : "Could not save the mapping");
+    }
+  };
+
+  const deleteMapping = async (id: number) => {
     setMapError("");
     try {
       const res = await fetch("/api/container-map", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ container })
+        body: JSON.stringify({ id })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Delete failed");
-      setMap((current) => current.filter((entry) => entry.container !== container));
+      setMap((current) => current.filter((entry) => entry.id !== id));
     } catch (err) {
       setMapError(err instanceof Error ? err.message : "Could not delete the mapping");
     }
@@ -429,7 +452,7 @@ export default function AdminContainersPage() {
               </thead>
               <tbody>
                 {map.map((entry) => (
-                  <tr key={entry.container}>
+                  <tr key={entry.id}>
                     <td>{entry.container}</td>
                     <td>
                       <input
@@ -438,7 +461,7 @@ export default function AdminContainersPage() {
                         onBlur={(e) => {
                           const value = e.target.value.trim();
                           if (value && value !== entry.supplierRef) {
-                            saveMapping(entry.container, value);
+                            updateMapping(entry.id, entry.container, value);
                           }
                         }}
                       />
@@ -447,7 +470,7 @@ export default function AdminContainersPage() {
                       <button
                         type="button"
                         className="button button-danger"
-                        onClick={() => deleteMapping(entry.container)}
+                        onClick={() => deleteMapping(entry.id)}
                       >
                         Remove
                       </button>

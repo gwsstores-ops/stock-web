@@ -43,16 +43,25 @@ export async function POST(req: Request) {
 
   const admin = supabaseAdmin();
 
-  const mappings = clean
-    .filter((row) => row.supplierRef)
-    .map((row) => ({
-      container: row.container,
-      supplier_ref: row.supplierRef,
-      updated_at: new Date().toISOString()
-    }));
+  // A container can carry more than one supplier ref (shown combined as
+  // "A + B" in the review table), so each part is remembered as its own
+  // (container, supplier ref) pair.
+  const mappings = clean.flatMap((row) =>
+    row.supplierRef
+      .split("+")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((ref) => ({
+        container: row.container,
+        supplier_ref: ref,
+        updated_at: new Date().toISOString()
+      }))
+  );
 
   if (mappings.length) {
-    const { error: mapError } = await admin.from("container_map").upsert(mappings);
+    const { error: mapError } = await admin
+      .from("container_map")
+      .upsert(mappings, { onConflict: "container,supplier_ref" });
     if (mapError) {
       return NextResponse.json({ error: mapError.message }, { status: 500 });
     }

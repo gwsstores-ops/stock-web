@@ -21,7 +21,8 @@ The old `stock` table is never modified by anything in this folder.
 | `15_add_stock_line_new_product.sql` | `add_stock_line` now creates a new `product` row (find-or-create, same logic as the CSV import trigger) instead of refusing when Diameter/Length/Size don't match an existing catalog entry - lets Admin → Add Line's Diameter/Length accept a typed value |
 | `16_accept_gws_in.sql` | `accept_gws_in` (service key only): moves a pallet from GWS-IN to plain GWS and clears `moved_to_gws_in_at`, for the Admin → Floor To GWS tool |
 | `17_container_tracking.sql` | Adds `container_map` (the container → supplier ref cross reference) and `container_tracking` (last-known positions) for the Containers tab and the Admin → Containers tool |
-| `99_rollback.sql` / `06_rollback_functions.sql` / `07_rollback_import_sync.sql` / `14_rollback_gws_in_recent_arrivals.sql` / `15_rollback_add_stock_line_new_product.sql` / `16_rollback_accept_gws_in.sql` / `17_rollback_container_tracking.sql` | Remove the new tables / functions / trigger |
+| `18_container_map_multi_ref.sql` | `container_map` moves from one row per container to one row per (container, supplier ref) pair, so a container carrying more than one supplier's goods can have both refs recorded |
+| `99_rollback.sql` / `06_rollback_functions.sql` / `07_rollback_import_sync.sql` / `14_rollback_gws_in_recent_arrivals.sql` / `15_rollback_add_stock_line_new_product.sql` / `16_rollback_accept_gws_in.sql` / `17_rollback_container_tracking.sql` / `18_rollback_container_map_multi_ref.sql` | Remove the new tables / functions / trigger |
 
 Needs `SUPABASE_SERVICE_ROLE_KEY` (server only, never `NEXT_PUBLIC_`) in `.env.local` and in the host's environment settings.
 
