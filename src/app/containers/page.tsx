@@ -16,12 +16,6 @@ type ApiRow = TrackingRow;
 type CardGroup = {
   key: string;
   title: string;
-  originPort: string;
-  originDate: string;
-  lastLocation: string;
-  lastStatus: string;
-  lastStatusDate: string;
-  destPort: string;
   eta: string;
   unmapped: boolean;
 };
@@ -31,11 +25,28 @@ const groupKey = (row: ApiRow) =>
     "|"
   );
 
+const WEEKDAYS = ["SUN", "MON", "TUE", "WED", "THUR", "FRI", "SAT"];
+
+/** THUR.15/10/2026 */
+const formatWeekdayDate = (d: Date) => {
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  return `${WEEKDAYS[d.getDay()]}.${day}/${month}/${d.getFullYear()}`;
+};
+
 const formatDate = (value: string) => {
   if (!value) return "";
   const d = new Date(`${value}T00:00:00`);
   if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  return formatWeekdayDate(d);
+};
+
+/** THUR.15/10/2026  10:06:57 AM */
+const formatLastUpdated = (iso: string) => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" });
+  return `${formatWeekdayDate(d)}  ${time}`;
 };
 
 export default function ContainersPage() {
@@ -89,12 +100,6 @@ export default function ContainersPage() {
       return {
         key: groupKey(first),
         title,
-        originPort: first.originPort,
-        originDate: first.originDate,
-        lastLocation: first.lastLocation,
-        lastStatus: first.lastStatus,
-        lastStatusDate: first.lastStatusDate,
-        destPort: first.destPort,
         eta: first.eta,
         unmapped: grouped.some((r) => !r.supplierRef)
       };
@@ -149,9 +154,7 @@ export default function ContainersPage() {
     <main className="page-shell page-shell-wide">
       <AppHeader title="Containers">
         {lastUpdated && (
-          <span className="last-updated">
-            Last updated: {new Date(lastUpdated).toLocaleString()}
-          </span>
+          <span className="last-updated">Last updated: {formatLastUpdated(lastUpdated)}</span>
         )}
       </AppHeader>
 
@@ -191,15 +194,7 @@ export default function ContainersPage() {
               {cards.map((card) => (
                 <div key={card.key} className="container-card">
                   <div className="container-card-title">{card.title}</div>
-                  <div className="container-card-line">
-                    {card.lastLocation}
-                    {card.lastStatus ? ` · ${card.lastStatus}` : ""}
-                    {card.lastStatusDate ? ` ${formatDate(card.lastStatusDate)}` : ""}
-                  </div>
-                  <div className="container-card-eta">
-                    ETA {card.destPort}
-                    {card.eta ? ` ${formatDate(card.eta)}` : ""}
-                  </div>
+                  <div className="container-card-eta">ETA {card.eta ? formatDate(card.eta) : "-"}</div>
                   {card.unmapped && (
                     <div className="container-card-unmapped">Supplier ref not set yet</div>
                   )}
