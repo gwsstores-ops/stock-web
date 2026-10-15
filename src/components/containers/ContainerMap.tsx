@@ -91,6 +91,34 @@ export default function ContainerMap({ points, destinations }: ContainerMapProps
 
   const pathGenerator = useMemo(() => geoPath(projection), [projection]);
 
+  // Two ports can be close enough in the real world to land on (or near) the
+  // same pixel at this map's scale (eg Tanjong Pelepas and Singapore) - left
+  // as separate markers their labels would just print on top of each other,
+  // so anything within CLUSTER_PX of another marker is folded into it.
+  const markers = useMemo(() => {
+    const CLUSTER_PX = 22;
+    const projected = points.map((p) => {
+      const [x, y] = projection([p.lon, p.lat]) ?? [0, 0];
+      return { x, y, labels: p.labels };
+    });
+
+    const clusters: { x: number; y: number; labels: string[] }[] = [];
+
+    for (const p of projected) {
+      const near = clusters.find((c) => Math.hypot(c.x - p.x, c.y - p.y) < CLUSTER_PX);
+
+      if (near) {
+        for (const label of p.labels) {
+          if (!near.labels.includes(label)) near.labels.push(label);
+        }
+      } else {
+        clusters.push({ x: p.x, y: p.y, labels: [...p.labels] });
+      }
+    }
+
+    return clusters;
+  }, [points, projection]);
+
   return (
     <svg
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
@@ -121,17 +149,16 @@ export default function ContainerMap({ points, destinations }: ContainerMapProps
         );
       })}
 
-      {points.map((p, i) => {
-        const [x, y] = projection([p.lon, p.lat]) ?? [0, 0];
+      {markers.map((m, i) => {
         const anchor = i % 2 === 0 ? "start" : "end";
         const dx = anchor === "start" ? 9 : -9;
 
         return (
           <g key={`pt-${i}`}>
-            <circle cx={x} cy={y} r={6} className="container-map-pos" />
-            <text x={x + dx} y={y - 8} textAnchor={anchor} className="container-map-label">
-              {p.labels.map((label, li) => (
-                <tspan key={label} x={x + dx} dy={li ? 14 : 0}>
+            <circle cx={m.x} cy={m.y} r={6} className="container-map-pos" />
+            <text x={m.x + dx} y={m.y - 8} textAnchor={anchor} className="container-map-label">
+              {m.labels.map((label, li) => (
+                <tspan key={label} x={m.x + dx} dy={li ? 14 : 0}>
                   {label}
                 </tspan>
               ))}
