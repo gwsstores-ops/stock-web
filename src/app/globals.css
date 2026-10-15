@@ -962,7 +962,7 @@ select.control,
 
 .bottom-nav-inner {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   width: min(100%, 780px);
   min-height: 65px;
   margin: 0 auto;
@@ -1178,4 +1178,116 @@ select.control,
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
+}
+
+.last-updated {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 7px 13px;
+  color: var(--ink-700);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.container-map-wrap {
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.container-map-sea {
+  fill: #eef1f7;
+}
+
+.container-map-land {
+  fill: var(--line);
+  stroke: #eef1f7;
+  stroke-width: 0.5;
+}
+
+.container-map-pos {
+  fill: var(--green-600);
+  stroke: #eef1f7;
+  stroke-width: 2;
+}
+
+.container-map-dest {
+  fill: var(--amber-600);
+  stroke: #eef1f7;
+  stroke-width: 2;
+}
+
+.container-map-label {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--ink-900);
+}
+
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 10px 0 14px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-500);
+}
+
+.map-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.map-legend-square {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.container-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.container-card {
+  padding: 12px 14px;
+  background: var(--background);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  font-size: 12px;
+}
+
+.container-card-title {
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--ink-900);
+}
+
+.container-card-line {
+  margin-top: 4px;
+  color: var(--ink-700);
+}
+
+.container-card-eta {
+  margin-top: 2px;
+  color: var(--ink-500);
+}
+
+.container-card-unmapped {
+  margin-top: 6px;
+  color: var(--amber-600);
+  font-weight: 800;
 }

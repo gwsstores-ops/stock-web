@@ -16,6 +16,11 @@ const items = [
     icon: "/qr-icon.png"
   },
   {
+    href: "/containers",
+    label: "Containers",
+    icon: "/container.png"
+  },
+  {
     href: "/tools",
     label: "Tools",
     icon: "/icons/stock-check-icon.svg"

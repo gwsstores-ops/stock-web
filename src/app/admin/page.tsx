@@ -38,6 +38,11 @@ const tools = [
     href: "/admin/clean-locations",
     label: "Clean Locations",
     icon: "/icons/BAY.png"
+  },
+  {
+    href: "/admin/containers",
+    label: "Containers",
+    icon: "/icons/container.png"
   }
 ];
 
