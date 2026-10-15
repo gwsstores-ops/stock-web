@@ -150,7 +150,10 @@ export default function ContainerMap({ points, destinations }: ContainerMapProps
       })}
 
       {markers.map((m, i) => {
-        const anchor = i % 2 === 0 ? "start" : "end";
+        // Labels default to the right of their marker, but one that close to
+        // the map's right edge would then run off it (SVG clips anything
+        // outside the viewBox) - so markers out there flip to the left.
+        const anchor = m.x > WIDTH - 140 ? "end" : "start";
         const dx = anchor === "start" ? 9 : -9;
 
         return (
