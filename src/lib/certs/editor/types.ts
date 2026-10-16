@@ -8,12 +8,16 @@
  */
 
 /** The overlay images, kept in /public/cert-assets. */
-export type AssetId = "gwsLogo" | "gwsAddress" | "gwsStatement";
+export type AssetId = "gwsLogo" | "gwsAddress" | "gwsStatement" | "gwsHeaderBlock";
 
 export const ASSETS: Record<AssetId, string> = {
   gwsLogo: "/cert-assets/gws-logo.png",
   gwsAddress: "/cert-assets/gws-address.png",
-  gwsStatement: "/cert-assets/gws-reproduced-statement.png"
+  gwsStatement: "/cert-assets/gws-reproduced-statement.png",
+  // A newer GWS header design (different from gwsLogo/gwsAddress) that already
+  // combines the logo and the address block into one image - used as-is
+  // because that is how it was pasted into the YONGHI sample.
+  gwsHeaderBlock: "/cert-assets/gws-header-block.png"
 };
 
 /**

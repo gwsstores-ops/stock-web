@@ -1,5 +1,6 @@
 import type { CertRules } from "../types";
 import { hamidi } from "./hamidi";
+import { yonghi } from "./yonghi";
 
 /**
  * A supplier whose cert we have not seen yet. It still appears in the picker so
@@ -21,9 +22,9 @@ const pending = (id: string, label: string): CertRules => ({
 
 export const CERT_SUPPLIERS: CertRules[] = [
   hamidi,
+  yonghi,
   pending("GDPA", "GDPA"),
-  pending("LONG_THREAD", "LONG THREAD"),
-  pending("YONGHI", "YONGHI")
+  pending("LONG_THREAD", "LONG THREAD")
 ];
 
 export const findCertSupplier = (id: string) =>
