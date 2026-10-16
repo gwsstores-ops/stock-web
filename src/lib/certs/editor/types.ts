@@ -40,6 +40,12 @@ export type Box = {
 export type CoverStep = {
   kind: "cover";
   box: Box;
+  /**
+   * Restricts this step to one page of the cert, 1-based - for a supplier
+   * whose steps land on different pages (the header on page 1, say, and the
+   * signature on page 2). Leave it out to apply on every page in scope.
+   */
+  page?: number;
   /** What this box hides, shown in the tool and in the run report. */
   note: string;
 };
@@ -55,6 +61,8 @@ export type StampStep = {
    * sample - leave it out for anything that should be straight.
    */
   rotate?: number;
+  /** Same as `CoverStep.page` - restricts this step to one page, 1-based. */
+  page?: number;
   note: string;
 };
 

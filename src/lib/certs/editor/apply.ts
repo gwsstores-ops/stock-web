@@ -139,6 +139,8 @@ export async function applyCertRules(
     const { width, height } = page.getSize();
 
     for (const step of rules.steps) {
+      if (step.page && step.page !== pageNumber) continue;
+
       const at = place(step.box, width, height, rules.reference);
 
       if (step.kind === "cover") {
