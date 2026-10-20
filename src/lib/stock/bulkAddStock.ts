@@ -92,7 +92,8 @@ function parseCsvLines(text: string): CsvCell[][] {
   }
   if (field !== "" || row.length > 0) pushRow();
 
-  return rows.filter((r) => !(r.length === 1 && r[0].trim() === ""));
+  // Drops blank lines, including the ",,,," rows Excel writes for formatted-but-empty template rows.
+  return rows.filter((r) => r.some((cell) => cell.trim() !== ""));
 }
 
 /** Parses a CSV file's text into header-keyed records (lower-cased header keys, trimmed values). */
