@@ -22,7 +22,8 @@ The old `stock` table is never modified by anything in this folder.
 | `16_accept_gws_in.sql` | `accept_gws_in` (service key only): moves a pallet from GWS-IN to plain GWS and clears `moved_to_gws_in_at`, for the Admin → Floor To GWS tool |
 | `17_container_tracking.sql` | Adds `container_map` (the container → supplier ref cross reference) and `container_tracking` (last-known positions) for the Containers tab and the Admin → Containers tool |
 | `18_container_map_multi_ref.sql` | `container_map` moves from one row per container to one row per (container, supplier ref) pair, so a container carrying more than one supplier's goods can have both refs recorded |
-| `99_rollback.sql` / `06_rollback_functions.sql` / `07_rollback_import_sync.sql` / `14_rollback_gws_in_recent_arrivals.sql` / `15_rollback_add_stock_line_new_product.sql` / `16_rollback_accept_gws_in.sql` / `17_rollback_container_tracking.sql` / `18_rollback_container_map_multi_ref.sql` | Remove the new tables / functions / trigger |
+| `19_bulk_add_stock.sql` | `bulk_add_stock` (service key only): same find-or-create insert as `add_stock_line`, but takes many rows in one call (all-or-nothing) for the Admin → Bulk Add Stock tool |
+| `99_rollback.sql` / `06_rollback_functions.sql` / `07_rollback_import_sync.sql` / `14_rollback_gws_in_recent_arrivals.sql` / `15_rollback_add_stock_line_new_product.sql` / `16_rollback_accept_gws_in.sql` / `17_rollback_container_tracking.sql` / `18_rollback_container_map_multi_ref.sql` / `19_rollback_bulk_add_stock.sql` | Remove the new tables / functions / trigger |
 
 Needs `SUPABASE_SERVICE_ROLE_KEY` (server only, never `NEXT_PUBLIC_`) in `.env.local` and in the host's environment settings.
 
@@ -45,9 +46,16 @@ re-apply it by hand from `move_log` if needed.
 
 ## Importing new stock after the cutover
 
-Keep importing the container CSV into the `stock` table in Supabase exactly as before. The trigger from
+Preferred: Admin → Bulk Add Stock (`19_bulk_add_stock.sql`). It takes the same CSV, validates every
+row against the current catalog first - flagging anything that would collide with
+`product_display_label_unique` (same displayed diameter/length, different underlying value) instead of
+failing the whole import opaquely - and only writes once every row is clean.
+
+Still works: importing the container CSV into the `stock` table in Supabase directly. The trigger from
 `07_import_sync.sql` copies each imported row into the tables the app reads, in the same statement (if
-any row cannot be added the whole import fails and nothing is half-imported).
+any row cannot be added the whole import fails and nothing is half-imported) - but a `product_display_label_unique`
+collision only surfaces as a raw SQL error after the fact, with no per-row validation. Prefer the admin
+tool above.
 
 `stock` is now only an inbox / record of imports. The app does not read it, and moves, relocations and
 stock checks are not written back to it. To see the real state, query the `stock_flat` view.

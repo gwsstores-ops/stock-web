@@ -25,6 +25,11 @@ const tools = [
     icon: "/icons/add-line-icon.svg"
   },
   {
+    href: "/admin/bulk-add-stock",
+    label: "Bulk Add Stock",
+    icon: "/icons/stack.png"
+  },
+  {
     href: "/admin/bulk-clear",
     label: "Bulk Clear",
     icon: "/icons/bulk-clear-icon.svg"

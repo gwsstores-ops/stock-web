@@ -1157,6 +1157,18 @@ select.control,
   line-height: 1.4;
 }
 
+.row-error {
+  background: var(--red-100);
+}
+
+.row-error-message {
+  max-width: 320px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #a51620;
+  line-height: 1.4;
+}
+
 /* The raw packing-list text behind a flagged line can run long (a whole
    wrapped multi-line description, say) - clamped to a few lines so it can't
    stretch the row's other, normally short, cells into a tall blank gap. The
