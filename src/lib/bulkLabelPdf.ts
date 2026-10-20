@@ -16,8 +16,8 @@
  *
  * A pallet that carries more than one product (a MIX pallet) gets one full
  * label per product rather than squeezing them into one slot: each copy
- * shows the bare pallet number in the diamond plus a small "MIX-n" tag
- * beside it, and the pallet id in the footer splits onto two lines, eg
+ * shows the bare pallet number in the diamond, with a black "MIX-n" band
+ * running into the diamond from the left, and the pallet id in the footer splits onto two lines, eg
  * "YF849_06" / "(MIX-2)" - the diamond and date stay exactly where they'd
  * be for a plain pallet; only the footer's own height grows.
  */
@@ -56,12 +56,14 @@ const DIAMOND_CX = 501;
 const DIAMOND_CY = 243.53;
 const DIAMOND_RX = 42;
 const DIAMOND_RY = 38;
-const DIAMOND_MAX_PT = 52;
+const DIAMOND_MAX_PT = 40;
+/** The number sits in the diamond's fat middle, clear of its narrowing points. */
+const DIAMOND_TEXT_W = DIAMOND_RX * 1.05;
 
 const MIX_TAG_PT = 22;
-const MIX_TAG_PAD_X = 8;
-const MIX_TAG_PAD_Y = 5;
-const MIX_TAG_GAP_PT = 3;
+/** Room left of the "MIX-n" text, and between it and the diamond's left point. */
+const MIX_TAG_PAD_X = 12;
+const MIX_TAG_H = DIAMOND_RY * 1.1;
 
 const ID_PT = 34;
 const FOOTER_ID_BASELINE_Y = 375.05;
@@ -146,29 +148,31 @@ const drawDiamond = (doc: Doc, cx: number, cy: number, label: string) => {
     true
   );
 
-  const pt = fit(doc, label, DIAMOND_MAX_PT, DIAMOND_RX * 1.7);
+  const pt = fit(doc, label, DIAMOND_MAX_PT, DIAMOND_TEXT_W);
   doc.setFontSize(pt);
   doc.setTextColor(...BLACK_HIGHLIGHT.text);
   doc.text(label, cx, cy + pt * 0.32, { align: "center" });
   doc.setTextColor(0, 0, 0);
 };
 
-/** The small "MIX-n" flag that sits just to the left of the diamond. */
+/**
+ * The "MIX-n" band: a black bar running in from the left into the diamond, so
+ * the two read as one arrow-shaped tag. Drawn before the diamond, which then
+ * covers the bar's right end.
+ */
 const drawMixTag = (doc: Doc, diamondCx: number, diamondCy: number, mixLabel: string) => {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(MIX_TAG_PT);
   const textWidth = doc.getTextWidth(mixLabel);
-  const tagW = textWidth + MIX_TAG_PAD_X * 2;
-  const tagH = MIX_TAG_PT + MIX_TAG_PAD_Y * 2;
-  const tagRight = diamondCx - DIAMOND_RX - MIX_TAG_GAP_PT;
-  const tagLeft = tagRight - tagW;
-  const tagTop = diamondCy - tagH / 2;
+  const textRight = diamondCx - DIAMOND_RX - MIX_TAG_PAD_X;
+  const tagLeft = textRight - textWidth - MIX_TAG_PAD_X;
+  const tagTop = diamondCy - MIX_TAG_H / 2;
 
   doc.setFillColor(...BLACK_HIGHLIGHT.fill);
-  doc.roundedRect(tagLeft, tagTop, tagW, tagH, 4, 4, "F");
+  doc.rect(tagLeft, tagTop, diamondCx - tagLeft, MIX_TAG_H, "F");
 
   doc.setTextColor(...BLACK_HIGHLIGHT.text);
-  doc.text(mixLabel, tagLeft + MIX_TAG_PAD_X, tagTop + tagH / 2 + MIX_TAG_PT * 0.32);
+  doc.text(mixLabel, textRight - textWidth, diamondCy + MIX_TAG_PT * 0.35);
   doc.setTextColor(0, 0, 0);
 };
 
@@ -218,8 +222,8 @@ const drawSlot = async (doc: Doc, QRCode: typeof import("qrcode"), row: Containe
   doc.text(qtyText, QTY_VALUE_X, qtyBaseline);
 
   const diamondCy = slotTop + DIAMOND_CY;
-  drawDiamond(doc, DIAMOND_CX, diamondCy, palletLabel);
   if (mixLabel) drawMixTag(doc, DIAMOND_CX, diamondCy, mixLabel);
+  drawDiamond(doc, DIAMOND_CX, diamondCy, palletLabel);
 
   // Footer: pallet id (one line, or two for a MIX pallet), QR code and date.
   const idLines = mixMatch
