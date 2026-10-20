@@ -11,8 +11,59 @@ type FilterOption = {
   label: string;
 };
 
+const TEX_SCREW_COLOURS: Record<string, CSSProperties> = {
+  yellow: { backgroundColor: "#facc15", color: "#000", fontWeight: 700 },
+  red: { backgroundColor: "#dc2626", color: "#fff", fontWeight: 700 },
+  blue: { backgroundColor: "#2563eb", color: "#fff", fontWeight: 700 },
+  black: { backgroundColor: "#000", color: "#fff", fontWeight: 700 }
+};
+
+// TEX SCREWS item colours, set per item by the stores team.
+const TEX_SCREW_ITEM_COLOURS: Record<string, keyof typeof TEX_SCREW_COLOURS> = {
+  GCPST175: "yellow",
+  GCPSTHTP60: "yellow",
+  GCPSTRHT100: "yellow",
+  GCPSTRHT175: "yellow",
+  GCPSTRHT200: "yellow",
+  GCPSTRHT60: "yellow",
+  GCPSTRHT80: "yellow",
+  GHSHTR130: "red",
+  GHSHTR150: "red",
+  GHSHTR76: "red",
+  GHTR105: "blue",
+  GHTR115: "blue",
+  GHTR150: "blue",
+  GHTR175: "blue",
+  GHTR240: "blue",
+  GHTR85: "blue",
+  GTP12: "black",
+  GTP14: "black",
+  GTP1420: "black",
+  GTP24: "black",
+  GTP28: "black",
+  GTR12: "blue",
+  GTR12NW: "blue",
+  GTR14: "blue",
+  GTR1420: "blue",
+  "GTR1420 (ASH & LACEY)": "blue",
+  "GTR1420 (ASH)": "blue",
+  "GTR1420 (ZP)": "blue",
+  GTR16: "yellow",
+  GTR23: "blue",
+  GTR24: "red",
+  GTR26: "red",
+  GTR27: "red",
+  GTR28: "yellow",
+  GTR32: "red"
+};
+
 const getItemOptionStyle = (item: string): CSSProperties => {
   const upper = item.toUpperCase();
+
+  const texColour = TEX_SCREW_ITEM_COLOURS[upper.trim()];
+  if (texColour) {
+    return TEX_SCREW_COLOURS[texColour];
+  }
 
   if (upper.endsWith("SC")) {
     return { backgroundColor: "#000", color: "#fff", fontWeight: 700 };
