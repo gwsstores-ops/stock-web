@@ -121,6 +121,18 @@ const fit = (doc: Doc, text: string, max: number, width: number) => {
   return measured > width ? Math.max(BLOCK_MIN_PT, (max * width) / measured) : max;
 };
 
+/**
+ * The item and size lines centre left of the page centre to keep clear of the
+ * diamond, but a line fitted to the full content width can't sit there
+ * without running off the left edge - slide it right just far enough to stay
+ * inside the margins. `pad` is any highlight bar sticking out either side.
+ */
+const centerWithinMargins = (doc: Doc, text: string, pt: number, centerX: number, pad = 0) => {
+  doc.setFontSize(pt);
+  const half = doc.getTextWidth(text) / 2 + pad;
+  return Math.min(Math.max(centerX, MARGIN + half), PAGE_W - MARGIN - half);
+};
+
 const drawCentered = (doc: Doc, text: string, pt: number, centerX: number, baselineY: number) => {
   doc.setFontSize(pt);
   doc.text(text, centerX, baselineY, { align: "center" });
@@ -160,12 +172,17 @@ const drawDiamond = (doc: Doc, cx: number, cy: number, label: string) => {
  * the two read as one arrow-shaped tag. Drawn before the diamond, which then
  * covers the bar's right end.
  */
-const drawMixTag = (doc: Doc, diamondCx: number, diamondCy: number, mixLabel: string) => {
+/** Where the "MIX-n" band starts - the quantity has to stop short of it. */
+const mixTagLeft = (doc: Doc, diamondCx: number, mixLabel: string) => {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(MIX_TAG_PT);
+  return diamondCx - DIAMOND_RX - MIX_TAG_PAD_X * 2 - doc.getTextWidth(mixLabel);
+};
+
+const drawMixTag = (doc: Doc, diamondCx: number, diamondCy: number, mixLabel: string) => {
+  const tagLeft = mixTagLeft(doc, diamondCx, mixLabel);
   const textWidth = doc.getTextWidth(mixLabel);
   const textRight = diamondCx - DIAMOND_RX - MIX_TAG_PAD_X;
-  const tagLeft = textRight - textWidth - MIX_TAG_PAD_X;
   const tagTop = diamondCy - MIX_TAG_H / 2;
 
   doc.setFillColor(...BLACK_HIGHLIGHT.fill);
@@ -187,19 +204,19 @@ const drawSlot = async (doc: Doc, QRCode: typeof import("qrcode"), row: Containe
   const mixLabel = mixMatch ? mixMatch[2] : null;
 
   // Item heading: bold, underlined, centered on ITEM_CENTER_X (not the page
-  // centre - that leaves the diamond's corner clear).
+  // centre - that leaves the diamond's corner clear) unless it's too wide to.
   const highlight = highlightFor(item);
-  const itemPt = fit(doc, item, ITEM_MAX_PT, CONTENT_W);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(itemPt);
+  const itemPad = highlight ? HIGHLIGHT_PAD_PT : 0;
+  const itemPt = fit(doc, item, ITEM_MAX_PT, CONTENT_W - itemPad * 2);
+  const itemCenterX = centerWithinMargins(doc, item, itemPt, ITEM_CENTER_X, itemPad);
   const itemWidth = doc.getTextWidth(item);
-  const itemX = ITEM_CENTER_X - itemWidth / 2;
+  const itemX = itemCenterX - itemWidth / 2;
   const itemBaseline = slotTop + ITEM_BASELINE_Y;
 
   if (highlight) drawHighlightBar(doc, item, itemPt, itemX, itemBaseline - itemPt * BASELINE_EM, highlight);
 
   doc.setTextColor(...(highlight?.text ?? [0, 0, 0]));
-  drawCentered(doc, item, itemPt, ITEM_CENTER_X, itemBaseline);
+  drawCentered(doc, item, itemPt, itemCenterX, itemBaseline);
 
   const underlineY = itemBaseline + itemPt * 0.09;
   doc.setDrawColor(...(highlight?.text ?? [0, 0, 0]));
@@ -210,11 +227,13 @@ const drawSlot = async (doc: Doc, QRCode: typeof import("qrcode"), row: Containe
 
   // Size: centered on SIZE_CENTER_X.
   const sizePt = fit(doc, size, SIZE_MAX_PT, CONTENT_W);
-  drawCentered(doc, size, sizePt, SIZE_CENTER_X, slotTop + SIZE_BASELINE_Y);
+  drawCentered(doc, size, sizePt, centerWithinMargins(doc, size, sizePt, SIZE_CENTER_X), slotTop + SIZE_BASELINE_Y);
 
   // "= qty": the equals sign and the value sit at their own fixed columns,
-  // not centered as one unit.
-  const qtyPt = fit(doc, qtyText, QTY_MAX_PT, PAGE_W - MARGIN - QTY_VALUE_X);
+  // not centered as one unit. On a MIX pallet the value has to end before the
+  // MIX band, which reaches much further left than the diamond alone.
+  const qtyRight = mixLabel ? mixTagLeft(doc, DIAMOND_CX, mixLabel) - MIX_TAG_PAD_X : PAGE_W - MARGIN;
+  const qtyPt = fit(doc, qtyText, QTY_MAX_PT, qtyRight - QTY_VALUE_X);
   const qtyBaseline = slotTop + QTY_BASELINE_Y;
   doc.setFontSize(QTY_MAX_PT);
   doc.text("=", QTY_EQUALS_X, qtyBaseline);
