@@ -1,4 +1,5 @@
 import type { CertRules } from "../types";
+import { deepak } from "./deepak";
 import { gdpa } from "./gdpa";
 import { hamidi } from "./hamidi";
 import { yonghi } from "./yonghi";
@@ -6,7 +7,8 @@ import { yonghi } from "./yonghi";
 export const CERT_SUPPLIERS: CertRules[] = [
   hamidi,
   yonghi,
-  gdpa
+  gdpa,
+  deepak
 ];
 
 export const findCertSupplier = (id: string) =>

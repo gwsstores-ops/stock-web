@@ -8,7 +8,7 @@
  */
 
 /** The overlay images, kept in /public/cert-assets. */
-export type AssetId = "gwsLogo" | "gwsAddress" | "gwsStatement" | "gwsHeaderBlock";
+export type AssetId = "gwsLogo" | "gwsAddress" | "gwsStatement" | "gwsHeaderBlock" | "gwsWordmark";
 
 export const ASSETS: Record<AssetId, string> = {
   gwsLogo: "/cert-assets/gws-logo.png",
@@ -17,7 +17,10 @@ export const ASSETS: Record<AssetId, string> = {
   // A newer GWS header design (different from gwsLogo/gwsAddress) that already
   // combines the logo and the address block into one image - used as-is
   // because that is how it was pasted into the YONGHI sample.
-  gwsHeaderBlock: "/cert-assets/gws-header-block.png"
+  gwsHeaderBlock: "/cert-assets/gws-header-block.png",
+  // The plain red/blue GWS lettering on its own, without gwsLogo's globe and
+  // strapline - lifted straight out of the hand-edited DEEPAK sample.
+  gwsWordmark: "/cert-assets/gws-wordmark.png"
 };
 
 /**
