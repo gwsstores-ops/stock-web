@@ -27,6 +27,8 @@ const LABEL_LINE = 14;
 const LABEL_ASCENT = 9;
 /** Dots closer than this get their labels split above/below to keep them apart. */
 const NEIGHBOUR_PX = 160;
+/** Dots closer than this side to side also get their labels pushed apart sideways. */
+const SIDE_PX = 90;
 
 type Box = { x0: number; x1: number; y0: number; y1: number };
 type LabelSpot = { anchor: "start" | "middle" | "end"; x: number; top: number };
@@ -160,10 +162,23 @@ export default function ContainerMap({ points, destinations }: ContainerMapProps
           (o.y < m.y - 1 || (Math.abs(o.y - m.y) <= 1 && o.x > m.x))
       );
 
-      const above = { anchor: "middle", x: centreX, top: m.y - 10 - height + 2 } as const;
-      const below = { anchor: "middle", x: centreX, top: m.y + 10 } as const;
+      // A neighbour right alongside (eg Cork and Rotterdam) also pushes the
+      // label sideways: it ends at its dot if the neighbour is to the east,
+      // starts at it if the neighbour is to the west.
+      const side = markers.find(
+        (o) => o !== m && Math.abs(o.x - m.x) < SIDE_PX && Math.abs(o.y - m.y) < 30
+      );
+      const along = (top: number): LabelSpot[] => [
+        ...(side
+          ? [side.x > m.x ? { anchor: "end" as const, x: m.x + 6, top } : { anchor: "start" as const, x: m.x - 6, top }]
+          : []),
+        { anchor: "middle", x: centreX, top }
+      ];
+
+      const above = along(m.y - 10 - height + 2);
+      const below = along(m.y + 10);
       const spots: LabelSpot[] = [
-        ...(hasHigherNeighbour ? [below, above] : [above, below]),
+        ...(hasHigherNeighbour ? [...below, ...above] : [...above, ...below]),
         { anchor: "start", x: m.x + 10, top: m.y - LABEL_ASCENT / 2 },
         { anchor: "end", x: m.x - 10, top: m.y - LABEL_ASCENT / 2 }
       ];
