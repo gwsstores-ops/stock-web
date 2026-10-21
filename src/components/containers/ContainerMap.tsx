@@ -21,6 +21,14 @@ const WORLD_ATLAS_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-11
 const WIDTH = 680;
 const HEIGHT = 400;
 const PAD = 10;
+/** .container-map-label is 12px bold - roughly 7px a character, 14px a line. */
+const LABEL_CHAR_W = 7;
+const LABEL_LINE = 14;
+const LABEL_ASCENT = 10;
+
+type Box = { x0: number; x1: number; y0: number; y1: number };
+
+const labelWidth = (lines: string[]) => Math.max(...lines.map((l) => l.length)) * LABEL_CHAR_W;
 
 let worldPromise: Promise<FeatureCollection<Geometry>> | null = null;
 
@@ -119,6 +127,48 @@ export default function ContainerMap({ points, destinations }: ContainerMapProps
     return clusters;
   }, [points, projection]);
 
+  // Labels default to above-right of their marker, but two markers that are
+  // too far apart to cluster can still be close enough for one's label to run
+  // over the other (eg Cork and Rotterdam) - so each label takes the first
+  // spot around its marker that's on the map and clear of every dot,
+  // destination label and label already placed.
+  const labelSpots = useMemo(() => {
+    const taken: Box[] = [
+      ...markers.map((m) => ({ x0: m.x - 7, x1: m.x + 7, y0: m.y - 7, y1: m.y + 7 })),
+      ...destinations.map((d) => {
+        const [x, y] = projection([d.lon, d.lat]) ?? [0, 0];
+        const w = labelWidth([d.labels.join(" + ")]);
+        return { x0: x - 10 - w, x1: x + 6, y0: y - 8, y1: y + 6 };
+      })
+    ];
+
+    return markers.map((m) => {
+      const width = labelWidth(m.labels);
+      const height = (m.labels.length - 1) * LABEL_LINE + LABEL_ASCENT + 3;
+      const spots = [
+        { anchor: "start", dx: 9, top: m.y - 8 - LABEL_ASCENT },
+        { anchor: "end", dx: -9, top: m.y - 8 - LABEL_ASCENT },
+        { anchor: "start", dx: 9, top: m.y + 8 },
+        { anchor: "end", dx: -9, top: m.y + 8 }
+      ] as const;
+
+      const boxOf = (spot: (typeof spots)[number]): Box => {
+        const x0 = spot.anchor === "start" ? m.x + spot.dx : m.x + spot.dx - width;
+        return { x0, x1: x0 + width, y0: spot.top, y1: spot.top + height };
+      };
+
+      const onMap = (b: Box) => b.x0 >= 0 && b.x1 <= WIDTH && b.y0 >= 0 && b.y1 <= HEIGHT;
+      const clear = (b: Box) => !taken.some((t) => b.x0 < t.x1 && t.x0 < b.x1 && b.y0 < t.y1 && t.y0 < b.y1);
+
+      const spot =
+        spots.find((s) => onMap(boxOf(s)) && clear(boxOf(s))) ??
+        spots.find((s) => onMap(boxOf(s))) ??
+        spots[0];
+      taken.push(boxOf(spot));
+      return spot;
+    });
+  }, [markers, destinations, projection]);
+
   return (
     <svg
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
@@ -150,18 +200,15 @@ export default function ContainerMap({ points, destinations }: ContainerMapProps
       })}
 
       {markers.map((m, i) => {
-        // Labels default to the right of their marker, but one that close to
-        // the map's right edge would then run off it (SVG clips anything
-        // outside the viewBox) - so markers out there flip to the left.
-        const anchor = m.x > WIDTH - 140 ? "end" : "start";
-        const dx = anchor === "start" ? 9 : -9;
+        const { anchor, dx, top } = labelSpots[i];
+        const x = m.x + dx;
 
         return (
           <g key={`pt-${i}`}>
             <circle cx={m.x} cy={m.y} r={6} className="container-map-pos" />
-            <text x={m.x + dx} y={m.y - 8} textAnchor={anchor} className="container-map-label">
+            <text x={x} y={top + LABEL_ASCENT} textAnchor={anchor} className="container-map-label">
               {m.labels.map((label, li) => (
-                <tspan key={label} x={m.x + dx} dy={li ? 14 : 0}>
+                <tspan key={label} x={x} dy={li ? LABEL_LINE : 0}>
                   {label}
                 </tspan>
               ))}
