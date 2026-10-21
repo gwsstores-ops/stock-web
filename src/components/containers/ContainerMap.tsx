@@ -24,9 +24,12 @@ const PAD = 10;
 /** .container-map-label is 12px bold - roughly 7px a character, 14px a line. */
 const LABEL_CHAR_W = 7;
 const LABEL_LINE = 14;
-const LABEL_ASCENT = 10;
+const LABEL_ASCENT = 9;
+/** Dots closer than this get their labels split above/below to keep them apart. */
+const NEIGHBOUR_PX = 160;
 
 type Box = { x0: number; x1: number; y0: number; y1: number };
+type LabelSpot = { anchor: "start" | "middle" | "end"; x: number; top: number };
 
 const labelWidth = (lines: string[]) => Math.max(...lines.map((l) => l.length)) * LABEL_CHAR_W;
 
@@ -127,33 +130,46 @@ export default function ContainerMap({ points, destinations }: ContainerMapProps
     return clusters;
   }, [points, projection]);
 
-  // Labels default to above-right of their marker, but two markers that are
-  // too far apart to cluster can still be close enough for one's label to run
-  // over the other (eg Cork and Rotterdam) - so each label takes the first
-  // spot around its marker that's on the map and clear of every dot,
-  // destination label and label already placed.
+  // Each label sits centred directly above or below its own dot, so it's
+  // obvious which dot it belongs to. Where two dots are near each other the
+  // higher one's label goes above and the lower one's below, pushing the
+  // labels apart rather than into the gap between them (eg JINDING above
+  // Rotterdam, 126ES below Cork). Either way a label takes the first spot
+  // that's on the map and clear of every dot, destination label and label
+  // already placed - falling back to beside the dot if above and below are
+  // both blocked.
   const labelSpots = useMemo(() => {
     const taken: Box[] = [
-      ...markers.map((m) => ({ x0: m.x - 7, x1: m.x + 7, y0: m.y - 7, y1: m.y + 7 })),
+      ...markers.map((m) => ({ x0: m.x - 6, x1: m.x + 6, y0: m.y - 6, y1: m.y + 6 })),
       ...destinations.map((d) => {
         const [x, y] = projection([d.lon, d.lat]) ?? [0, 0];
         const w = labelWidth([d.labels.join(" + ")]);
-        return { x0: x - 10 - w, x1: x + 6, y0: y - 8, y1: y + 6 };
+        return { x0: x - 10 - w, x1: x + 6, y0: y - 6, y1: y + 6 };
       })
     ];
 
     return markers.map((m) => {
       const width = labelWidth(m.labels);
-      const height = (m.labels.length - 1) * LABEL_LINE + LABEL_ASCENT + 3;
-      const spots = [
-        { anchor: "start", dx: 9, top: m.y - 8 - LABEL_ASCENT },
-        { anchor: "end", dx: -9, top: m.y - 8 - LABEL_ASCENT },
-        { anchor: "start", dx: 9, top: m.y + 8 },
-        { anchor: "end", dx: -9, top: m.y + 8 }
-      ] as const;
+      const height = (m.labels.length - 1) * LABEL_LINE + LABEL_ASCENT + 2;
+      const centreX = Math.min(Math.max(m.x, width / 2 + 4), WIDTH - 4 - width / 2);
 
-      const boxOf = (spot: (typeof spots)[number]): Box => {
-        const x0 = spot.anchor === "start" ? m.x + spot.dx : m.x + spot.dx - width;
+      const hasHigherNeighbour = markers.some(
+        (o) =>
+          o !== m &&
+          Math.hypot(o.x - m.x, o.y - m.y) < NEIGHBOUR_PX &&
+          (o.y < m.y - 1 || (Math.abs(o.y - m.y) <= 1 && o.x > m.x))
+      );
+
+      const above = { anchor: "middle", x: centreX, top: m.y - 10 - height + 2 } as const;
+      const below = { anchor: "middle", x: centreX, top: m.y + 10 } as const;
+      const spots: LabelSpot[] = [
+        ...(hasHigherNeighbour ? [below, above] : [above, below]),
+        { anchor: "start", x: m.x + 10, top: m.y - LABEL_ASCENT / 2 },
+        { anchor: "end", x: m.x - 10, top: m.y - LABEL_ASCENT / 2 }
+      ];
+
+      const boxOf = (spot: LabelSpot): Box => {
+        const x0 = spot.anchor === "start" ? spot.x : spot.anchor === "end" ? spot.x - width : spot.x - width / 2;
         return { x0, x1: x0 + width, y0: spot.top, y1: spot.top + height };
       };
 
@@ -161,8 +177,8 @@ export default function ContainerMap({ points, destinations }: ContainerMapProps
       const clear = (b: Box) => !taken.some((t) => b.x0 < t.x1 && t.x0 < b.x1 && b.y0 < t.y1 && t.y0 < b.y1);
 
       const spot =
-        spots.find((s) => onMap(boxOf(s)) && clear(boxOf(s))) ??
-        spots.find((s) => onMap(boxOf(s))) ??
+        spots.find((sp) => onMap(boxOf(sp)) && clear(boxOf(sp))) ??
+        spots.find((sp) => onMap(boxOf(sp))) ??
         spots[0];
       taken.push(boxOf(spot));
       return spot;
@@ -200,8 +216,7 @@ export default function ContainerMap({ points, destinations }: ContainerMapProps
       })}
 
       {markers.map((m, i) => {
-        const { anchor, dx, top } = labelSpots[i];
-        const x = m.x + dx;
+        const { anchor, x, top } = labelSpots[i];
 
         return (
           <g key={`pt-${i}`}>
