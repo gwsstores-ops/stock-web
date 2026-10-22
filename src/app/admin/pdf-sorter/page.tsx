@@ -32,9 +32,8 @@ export default function PdfSorterPage() {
     setProgress(null);
 
     try {
-      const csvText = await csvFile.text();
       setResult(
-        await sortPdfs(pdfFiles, serialsText, csvText, (done, total) =>
+        await sortPdfs(pdfFiles, serialsText, csvFile, (done, total) =>
           setProgress({ done, total })
         )
       );
@@ -154,16 +153,16 @@ export default function PdfSorterPage() {
         <div className="section-heading">
           <div>
             <p className="section-kicker">Step 3</p>
-            <h2>Invoice → customer CSV</h2>
+            <h2>Invoice → customer list</h2>
           </div>
         </div>
 
         <label className="field">
-          <span className="field-label">invoice_customer.csv</span>
+          <span className="field-label">invoice_customer (.csv or .xlsx)</span>
           <input
             ref={csvInputRef}
             type="file"
-            accept=".csv,text/csv"
+            accept=".csv,text/csv,.xlsx"
             className="control"
             onChange={(e) => {
               setCsvFile(e.target.files?.[0] ?? null);

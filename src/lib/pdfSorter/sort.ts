@@ -105,17 +105,35 @@ export function naturalCompare(a: string, b: string): number {
   return 0;
 }
 
+/** Reads the invoice/customer list as rows, from either a .csv or an .xlsx (first sheet). */
+export async function readInvoiceCustomerRows(file: File): Promise<string[][]> {
+  if (!file.name.toLowerCase().endsWith(".xlsx")) return parseCsv(await file.text());
+
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(await file.arrayBuffer());
+  const ws = wb.worksheets[0];
+  if (!ws) return [];
+
+  const rows: string[][] = [];
+  ws.eachRow({ includeEmpty: true }, (row) => {
+    const cells: string[] = [];
+    for (let c = 1; c <= ws.columnCount; c++) cells.push(row.getCell(c).text ?? "");
+    rows.push(cells);
+  });
+  return rows;
+}
+
 /** Mirrors read_invoice_customer_index() - requires Number and Customer columns. */
-export function parseInvoiceCustomerCsv(csvText: string): Map<string, string> {
-  const rows = parseCsv(csvText);
+export function parseInvoiceCustomerRows(rows: string[][]): Map<string, string> {
   const [header = [], ...data] = rows;
 
-  const norm = (s: string) => s.trim().toLowerCase();
+  const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
   const numberCol = header.findIndex((h) => norm(h) === "number");
   const customerCol = header.findIndex((h) => norm(h) === "customer");
 
   if (numberCol < 0 || customerCol < 0) {
-    throw new Error("The invoice/customer CSV must have columns named Number and Customer.");
+    throw new Error("The invoice/customer file must have columns named Number and Customer.");
   }
 
   const index = new Map<string, string>();
@@ -128,7 +146,7 @@ export function parseInvoiceCustomerCsv(csvText: string): Map<string, string> {
   }
 
   if (!index.size) {
-    throw new Error("The invoice/customer CSV has no usable Number/Customer rows.");
+    throw new Error("The invoice/customer file has no usable Number/Customer rows.");
   }
 
   return index;
@@ -216,13 +234,15 @@ const relativePathOf = (file: File) =>
 export async function sortPdfs(
   pdfFileList: File[],
   serialsText: string,
-  invoiceCustomerCsvText: string,
+  invoiceCustomerFile: File,
   onProgress?: (done: number, total: number) => void
 ): Promise<SortResult> {
   const pdfLib = await import("pdf-lib");
   const JSZip = (await import("jszip")).default;
 
-  const invoiceCustomerIndex = parseInvoiceCustomerCsv(invoiceCustomerCsvText);
+  const invoiceCustomerIndex = parseInvoiceCustomerRows(
+    await readInvoiceCustomerRows(invoiceCustomerFile)
+  );
 
   const searchLines = serialsText
     .split(/\r?\n/)
