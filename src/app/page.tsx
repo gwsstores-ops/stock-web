@@ -32,6 +32,7 @@ const TEX_SCREW_ITEM_COLOURS: Record<string, keyof typeof TEX_SCREW_COLOURS> = {
   GHSHTR76: "red",
   GHTR105: "blue",
   GHTR115: "blue",
+  GHTR130: "blue",
   GHTR150: "blue",
   GHTR175: "blue",
   GHTR240: "blue",
