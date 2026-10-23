@@ -57,7 +57,7 @@ export default function AddLinePage() {
 
   // LOAD CATEGORIES
   useEffect(() => {
-    fetch("/api/categories")
+    fetch("/api/categories?catalog=1")
       .then((res) => res.json())
       .then((data) => setCategories(data.categories || []));
   }, []);
@@ -66,7 +66,7 @@ export default function AddLinePage() {
   useEffect(() => {
     if (!cat) return;
 
-    fetch(`/api/items?cat=${encodeURIComponent(cat)}`)
+    fetch(`/api/items?catalog=1&cat=${encodeURIComponent(cat)}`)
       .then((res) => res.json())
       .then((data) => setItems(data.items || []));
   }, [cat]);
@@ -75,7 +75,7 @@ export default function AddLinePage() {
   useEffect(() => {
     if (!item) return;
 
-    fetch(`/api/diameters?cat=${encodeURIComponent(cat)}&item=${encodeURIComponent(item)}`)
+    fetch(`/api/diameters?catalog=1&cat=${encodeURIComponent(cat)}&item=${encodeURIComponent(item)}`)
       .then((res) => res.json())
       .then((data) => {
         const sorted = (data.diameters || []).sort(
@@ -100,7 +100,7 @@ export default function AddLinePage() {
     }
 
     fetch(
-      `/api/lengths?cat=${encodeURIComponent(cat)}&item=${encodeURIComponent(item)}&diam=${encodeURIComponent(matched.value)}`
+      `/api/lengths?catalog=1&cat=${encodeURIComponent(cat)}&item=${encodeURIComponent(item)}&diam=${encodeURIComponent(matched.value)}`
     )
       .then((res) => res.json())
       .then((data) => {
@@ -144,12 +144,10 @@ export default function AddLinePage() {
     const params = new URLSearchParams({ cat, item, diam: matched.value });
     if (hasLength && matchedLen) params.set("length", matchedLen.value);
 
-    fetch(`/api/search?${params.toString()}`)
+    fetch(`/api/sizes?${params.toString()}`)
       .then((res) => res.json())
       .then((data) => {
-        const distinctSizes = [
-          ...new Set((data.rows || []).map((row: { size: string }) => row.size))
-        ] as string[];
+        const distinctSizes: string[] = data.sizes || [];
         setSizes(distinctSizes);
         setSize(distinctSizes.length === 1 ? distinctSizes[0] : "");
       });

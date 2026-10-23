@@ -7,10 +7,13 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const cat = searchParams.get("cat");
   const item = searchParams.get("item");
+  // catalog=1 lists every product in the catalogue, not just ones currently in stock
+  const catalog = searchParams.get("catalog") === "1";
+  const table = catalog ? "product" : "stocked_product";
   const diam = searchParams.get("diam");
 
   const { data, error } = await cached(
-    `lengths:${cat}:${item}:${diam}`,
+    `lengths:${table}:${cat}:${item}:${diam}`,
     60_000,
     () =>
       fetchAllPages<{
@@ -18,12 +21,12 @@ export async function GET(request: Request) {
         length_display: string | null;
       }>((from, to) =>
         supabase
-          .from("stocked_product")
+          .from(table)
           .select("length_value, length_display")
           .eq("cat", cat)
           .eq("item", item)
           .eq("diam_value", Number(diam))
-          .order("first_line_id", { ascending: true })
+          .order(catalog ? "id" : "first_line_id", { ascending: true })
           .range(from, to)
       )
   );

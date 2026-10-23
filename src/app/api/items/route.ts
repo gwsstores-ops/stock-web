@@ -6,15 +6,17 @@ import { cached } from "@/lib/routeCache";
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const cat = searchParams.get("cat");
+  // catalog=1 lists every product in the catalogue, not just ones currently in stock
+  const table = searchParams.get("catalog") === "1" ? "product" : "stocked_product";
 
   if (!cat) {
     return NextResponse.json({ items: [] });
   }
 
-  const { data, error } = await cached(`items:${cat}`, 60_000, () =>
+  const { data, error } = await cached(`items:${table}:${cat}`, 60_000, () =>
     fetchAllPages<{ item: string | null }>((from, to) =>
       supabase
-        .from("stocked_product")
+        .from(table)
         .select("item")
         .eq("cat", cat)
         .not("item", "is", null)
