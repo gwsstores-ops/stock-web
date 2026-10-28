@@ -4,8 +4,9 @@
  * Layout follows templates/label-template.docx: narrow margins, one or more items stacked
  * top to bottom. Each item is printed in underlined bold capitals (as large as fits the line,
  * highlighted grey when it contains HDG, or black with white text when it ends in SC), followed
- * by one bold line per size (left aligned, as big as the page allows but never larger than its
- * own item). The QR code, pallet ID and today's date (dd-mm-yy) are pinned to the bottom of the
+ * by one bold line per size (left aligned with each other, in a block centred on the page). When
+ * space is tight sizes stay no larger than their own item; when there's room to spare they all
+ * grow together to fill the page down to the bottom block. The QR code, pallet ID and today's date (dd-mm-yy) are pinned to the bottom of the
  * page, shared by every item, with blank space between. Text is measured, so a long item or size
  * shrinks to stay on one line.
  */
@@ -173,7 +174,21 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
   const scale = naturalTextHeight > roomForText ? roomForText / naturalTextHeight : 1;
 
   const itemPts = itemNaturalPts.map((pt) => Math.max(SIZE_MIN_PT, pt * scale));
-  const sizePtsByItem = sizeNaturalPtsByItem.map((pts) => pts.map((pt) => Math.max(SIZE_MIN_PT, pt * scale)));
+  let sizePtsByItem = sizeNaturalPtsByItem.map((pts) => pts.map((pt) => Math.max(SIZE_MIN_PT, pt * scale)));
+
+  // If there's blank space left over, grow every size line by the same factor to fill it,
+  // so the sizes are as big as the page allows. Here they may outgrow their item heading;
+  // each line still stops at the width of the page.
+  if (scale === 1) {
+    const itemsHeight = itemPts.reduce((sum, pt) => sum + pt * LINE_EM, 0);
+    const sizesHeight = sizePtsByItem.reduce((sum, pts) => sum + pts.reduce((s, pt) => s + pt * LINE_EM, 0), 0);
+    const grow = (roomForText - itemsHeight) / sizesHeight;
+    if (grow > 1) {
+      sizePtsByItem = sizePtsByItem.map((pts, i) =>
+        pts.map((pt, j) => Math.min(pt * grow, fitSize(items[i].sizes[j], items[i].qtys[j], SIZE_MAX_PT)))
+      );
+    }
+  }
 
   let y = MARGIN;
 
@@ -219,19 +234,31 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
     y += pt * LINE_EM;
   };
 
+  // Width of a size line: the bold size plus its non-bold qty suffix
+  const sizeLineWidth = (size: string, qty: string, pt: number) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(pt);
+    const sizeWidth = doc.getTextWidth(size);
+    const suffix = qtySuffix(qty);
+    doc.setFont("helvetica", "normal");
+    const suffixWidth = suffix ? doc.getTextWidth(suffix) : 0;
+    doc.setFont("helvetica", "bold");
+    return sizeWidth + suffixWidth;
+  };
+
   // A size line, with its qty (if any) appended in non-bold text right after it
-  const drawSizeLine = (size: string, qty: string, pt: number) => {
+  const drawSizeLine = (size: string, qty: string, pt: number, x: number) => {
     const baseline = y + pt * BASELINE_EM;
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(pt);
-    doc.text(size, MARGIN, baseline);
+    doc.text(size, x, baseline);
 
     const suffix = qtySuffix(qty);
     if (suffix) {
       const sizeWidth = doc.getTextWidth(size);
       doc.setFont("helvetica", "normal");
-      doc.text(suffix, MARGIN + sizeWidth, baseline);
+      doc.text(suffix, x + sizeWidth, baseline);
       doc.setFont("helvetica", "bold");
     }
 
@@ -242,7 +269,10 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
     if (i > 0) y += GAP_PT;
     drawLine(entry.name, itemPts[i], "center", true, highlightFor(entry.name));
     y += GAP_PT;
-    entry.sizes.forEach((size, j) => drawSizeLine(size, entry.qtys[j], sizePtsByItem[i][j]));
+    // Each item's sizes stay left aligned with each other, as a block centred on the page
+    const blockW = Math.max(...entry.sizes.map((size, j) => sizeLineWidth(size, entry.qtys[j], sizePtsByItem[i][j])));
+    const blockX = Math.max(MARGIN, (PAGE_W - blockW) / 2);
+    entry.sizes.forEach((size, j) => drawSizeLine(size, entry.qtys[j], sizePtsByItem[i][j], blockX));
   });
 
   y = bottomTop;
