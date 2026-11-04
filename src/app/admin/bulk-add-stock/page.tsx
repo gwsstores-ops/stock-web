@@ -144,7 +144,10 @@ export default function BulkAddStockPage() {
           size, diam_value, diam_display, length_value, length_display, qty (note and code are
           optional). Every row is checked against the existing catalog first - nothing is added
           until you confirm below, and a row that would collide with an existing product is
-          flagged instead of silently failing the whole import.
+          flagged instead of silently failing the whole import.{" "}
+          <a href="/bulk-add-stock-template.csv" download>
+            Download template CSV
+          </a>
         </p>
 
         {parseError && <p className="search-error">{parseError}</p>}
