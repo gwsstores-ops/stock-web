@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AppHeader from "@/components/AppHeader";
-import { buildLabelPdf, formatLabelDate, MAX_ITEMS, MAX_SIZES } from "@/lib/labelPdf";
+import { buildLabelPdf, formatLabelDate, MAX_ITEMS, MAX_SIZES, type LabelOrientation } from "@/lib/labelPdf";
 
 type ItemBlock = {
   item: string;
@@ -21,6 +21,7 @@ const newBlock = (): ItemBlock => ({
 export default function PalletLabelPage() {
   const [items, setItems] = useState<ItemBlock[]>([newBlock()]);
   const [palletId, setPalletId] = useState("");
+  const [orientation, setOrientation] = useState<LabelOrientation>("landscape");
   const [itemOptions, setItemOptions] = useState<string[]>([]);
   const [today, setToday] = useState("");
   const [building, setBuilding] = useState(false);
@@ -141,7 +142,8 @@ export default function PalletLabelPage() {
           qtys: block.qtys.slice(0, block.sizeCount)
         })),
         palletId,
-        date: now
+        date: now,
+        orientation
       });
 
       const safeId = palletId.trim().toUpperCase().replace(/[^A-Z0-9_-]+/g, "_");
@@ -292,6 +294,24 @@ export default function PalletLabelPage() {
             autoComplete="off"
           />
         </label>
+
+        <div className="field" style={{ marginTop: 14 }}>
+          <span className="field-label">Page</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            {(["landscape", "portrait"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setOrientation(option)}
+                aria-pressed={orientation === option}
+                className={`button ${orientation === option ? "button-primary" : "button-secondary"}`}
+                style={{ flex: 1 }}
+              >
+                {option === "landscape" ? "Landscape" : "Portrait"}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <p className="helper-text">
           Date on the label: <strong>{today}</strong> (today). The pallet ID is also printed as a QR code.

@@ -9,6 +9,9 @@
  * grow together to fill the page down to the bottom block. The QR code, pallet ID and today's date (dd-mm-yy) are pinned to the bottom of the
  * page, shared by every item, with blank space between. Text is measured, so a long item or size
  * shrinks to stay on one line.
+ *
+ * In landscape the page is wider but shorter, so the bottom block shares one row: QR code and
+ * pallet ID on the left, the date on the right.
  */
 
 export const MAX_SIZES = 8;
@@ -20,10 +23,13 @@ export type ItemEntry = {
   qtys?: string[];
 };
 
+export type LabelOrientation = "portrait" | "landscape";
+
 export type LabelInput = {
   items: ItemEntry[];
   palletId: string;
   date?: Date;
+  orientation?: LabelOrientation;
 };
 
 // A4 portrait, in points
@@ -112,21 +118,26 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
     }
   }
 
-  const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait", compress: true });
+  const landscape = input.orientation === "landscape";
+  const pageW = landscape ? PAGE_H : PAGE_W;
+  const pageH = landscape ? PAGE_W : PAGE_H;
+  const contentW = pageW - MARGIN * 2;
+
+  const doc = new jsPDF({ unit: "pt", format: "a4", orientation: landscape ? "landscape" : "portrait", compress: true });
   doc.setFont("helvetica", "bold");
 
   // Largest font, up to `max`, that keeps `text` on one line
   const fit = (text: string, max: number) => {
     doc.setFontSize(max);
     const width = doc.getTextWidth(text);
-    return width > CONTENT_W ? Math.max(20, (max * CONTENT_W) / width) : max;
+    return width > contentW ? Math.max(20, (max * contentW) / width) : max;
   };
 
   // Largest font, up to `max`, that fills the line: like `fit`, but short text grows too
   const fill = (text: string, max: number) => {
     doc.setFontSize(100);
     const width = doc.getTextWidth(text);
-    return Math.max(20, Math.min(max, (100 * CONTENT_W) / width));
+    return Math.max(20, Math.min(max, (100 * contentW) / width));
   };
 
   // A size's qty is printed right after it, in non-bold text: "20 X 80 =1000"
@@ -142,7 +153,7 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
     const suffixWidth = suffix ? doc.getTextWidth(suffix) : 0;
     doc.setFont("helvetica", "bold");
     const width = sizeWidth + suffixWidth;
-    return width > CONTENT_W ? Math.max(20, (max * CONTENT_W) / width) : max;
+    return width > contentW ? Math.max(20, (max * contentW) / width) : max;
   };
 
   // Each item's natural size, as if it had the whole page to itself: as large as its text
@@ -154,9 +165,13 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
 
   const palletPt = fit(palletId, PALLET_PT);
 
-  // QR code, pallet ID and date sit together at the bottom of the page
-  const bottomHeight = QR_PT + palletPt * LINE_EM + GAP_PT + DATE_PT * LINE_EM;
-  const bottomTop = PAGE_H - MARGIN - bottomHeight;
+  // QR code, pallet ID and date sit together at the bottom of the page: stacked in portrait,
+  // side by side in landscape
+  const qrBlockHeight = QR_PT + palletPt * LINE_EM;
+  const bottomHeight = landscape
+    ? Math.max(qrBlockHeight, DATE_PT * LINE_EM)
+    : qrBlockHeight + GAP_PT + DATE_PT * LINE_EM;
+  const bottomTop = pageH - MARGIN - bottomHeight;
 
   // Space for the items: between the top margin and the bottom block, minus the gap below
   // each heading and the gap between each pair of items
@@ -195,17 +210,17 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
   const drawLine = (
     text: string,
     pt: number,
-    align: "left" | "center",
+    align: "left" | "center" | "right",
     underline = false,
     highlight: Highlight | null = null
   ) => {
     doc.setFontSize(pt);
-    const x = align === "center" ? PAGE_W / 2 : MARGIN;
+    const x = align === "center" ? pageW / 2 : align === "right" ? pageW - MARGIN : MARGIN;
     const baseline = y + pt * BASELINE_EM;
 
     if (highlight) {
       const width = doc.getTextWidth(text);
-      const left = align === "center" ? x - width / 2 : x;
+      const left = align === "center" ? x - width / 2 : align === "right" ? x - width : x;
       doc.setFillColor(...highlight.fill);
       doc.rect(
         left - HIGHLIGHT_PAD_PT,
@@ -223,7 +238,7 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
 
     if (underline) {
       const width = doc.getTextWidth(text);
-      const left = align === "center" ? x - width / 2 : x;
+      const left = align === "center" ? x - width / 2 : align === "right" ? x - width : x;
       doc.setLineWidth(pt / 14);
       doc.line(left, baseline + pt * 0.09, left + width, baseline + pt * 0.09);
     }
@@ -271,11 +286,11 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
     y += GAP_PT;
     // Each item's sizes stay left aligned with each other, as a block centred on the page
     const blockW = Math.max(...entry.sizes.map((size, j) => sizeLineWidth(size, entry.qtys[j], sizePtsByItem[i][j])));
-    const blockX = Math.max(MARGIN, (PAGE_W - blockW) / 2);
+    const blockX = Math.max(MARGIN, (pageW - blockW) / 2);
     entry.sizes.forEach((size, j) => drawSizeLine(size, entry.qtys[j], sizePtsByItem[i][j], blockX));
   });
 
-  y = bottomTop;
+  y = landscape ? pageH - MARGIN - qrBlockHeight : bottomTop;
 
   const qr = await QRCode.toDataURL(palletId, {
     margin: 1,
@@ -287,8 +302,13 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
 
   drawLine(palletId, palletPt, "left");
 
-  y += GAP_PT;
-  drawLine(date, DATE_PT, "center");
+  if (landscape) {
+    y = pageH - MARGIN - DATE_PT * LINE_EM;
+    drawLine(date, DATE_PT, "right");
+  } else {
+    y += GAP_PT;
+    drawLine(date, DATE_PT, "center");
+  }
 
   return doc.output("blob");
 }
