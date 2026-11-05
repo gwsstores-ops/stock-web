@@ -57,6 +57,11 @@ change these constants/functions if the rules ever change):
      correspond. The count of list rows must equal the count of files /
      separator rows, or this script raises an error rather than guessing.
      The value is written into the Confirmation Notes column (not File).
+
+  6. HEAT SPLIT -- when Confirmation Notes lists heats as
+     "HEAT NO 1: <heat> (...)\\nHEAT NO 2: <heat> (...)", the row is repeated
+     once per heat (same File/Quantity/Line/Product/Description) and the
+     notes cell holds just that heat number, in the order listed.
 """
 
 import argparse
@@ -86,6 +91,18 @@ def product_matches(product) -> bool:
         return False
     p = str(product).strip()
     return p.startswith("ISO4017G") or p.startswith("933CEASS") or "HSFG" in p
+
+
+# ---------------------------------------------------------------------------
+# Rule 6: heat split
+# ---------------------------------------------------------------------------
+HEAT_RE = re.compile(r"HEAT\s*NO\.?\s*\d+\s*[:\-]?\s*([^\s(]+)", re.IGNORECASE)
+
+
+def heat_numbers(notes) -> list:
+    if notes is None:
+        return []
+    return HEAT_RE.findall(str(notes))
 
 
 # ---------------------------------------------------------------------------
@@ -210,7 +227,8 @@ def combine(zip_path: Path, list_path: Path | None, out_path: Path):
                 continue
             quantity, line, product, description, notes = (list(row) + [None] * 5)[:5]
             if product_matches(product):
-                matched.append((quantity, line, product, description, notes))
+                for heat in heat_numbers(notes) or [notes]:
+                    matched.append((quantity, line, product, description, heat))
 
         # Rule 3: blank row before every file, including the first
         ws_out.append([None] * len(HEADERS))

@@ -103,6 +103,11 @@ export default function CertCombinePage() {
               labelled 01, 02 and so on in the File column.
             </li>
             <li>A blank row is added before each file&apos;s rows.</li>
+            <li>
+              A line whose Confirmation Notes lists several heats (HEAT NO 1:
+              ..., HEAT NO 2: ...) is split into one row per heat, with just the
+              heat number in Confirmation Notes.
+            </li>
           </ul>
         </details>
       </section>

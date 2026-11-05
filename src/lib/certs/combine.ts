@@ -29,6 +29,11 @@
  *  5. MERGE WITH LIST - matched to separator rows purely by ORDER (list row 1
  *     -> first separator row, and so on). The counts must be equal, otherwise
  *     it errors rather than guessing. The text goes in Confirmation Notes.
+ *
+ *  6. HEAT SPLIT - when Confirmation Notes lists heats as
+ *     "HEAT NO 1: <heat> (...)\nHEAT NO 2: <heat> (...)", the row is repeated
+ *     once per heat (same File/Quantity/Line/Product/Description) and the
+ *     notes cell holds just that heat number, in the order listed.
  */
 
 import type ExcelJSType from "exceljs";
@@ -69,6 +74,20 @@ export function productMatches(product: CellValue): boolean {
   if (product === null || product === undefined) return false;
   const p = String(product).trim();
   return p.startsWith("ISO4017G") || p.startsWith("933CEASS") || p.includes("HSFG");
+}
+
+// Rule 6
+export function heatNumbers(notes: CellValue): string[] {
+  if (notes === null || notes === undefined) return [];
+  return Array.from(
+    String(notes).matchAll(/HEAT\s*NO\.?\s*\d+\s*[:\-]?\s*([^\s(]+)/gi),
+    (m) => m[1]
+  );
+}
+
+function splitHeats(row: SourceRow): SourceRow[] {
+  const heats = heatNumbers(row.notes);
+  return heats.length ? heats.map((notes) => ({ ...row, notes })) : [row];
 }
 
 // Rule 2
@@ -338,7 +357,9 @@ export async function combineCerts(
     const wsIn = wbIn.worksheets[0];
 
     const matched = wsIn
-      ? readSourceRows(wsIn).filter((r) => productMatches(r.product))
+      ? readSourceRows(wsIn)
+          .filter((r) => productMatches(r.product))
+          .flatMap(splitHeats)
       : [];
 
     // Rule 3: blank row before every file, including the first
