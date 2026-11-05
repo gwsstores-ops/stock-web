@@ -25,6 +25,8 @@
  *     UPPER("NEW CERTS " + Number + " PO " + CustomerRef + " REF " + JobNumber)
  *     leaving out PO / REF when empty, and stripping a redundant leading "PO"
  *     from CustomerRef and "REF" from JobNumber (plus any separator after it).
+ *     Exception: for DUGGAN J&F STEEL BUILDINGS LTD it is
+ *     UPPER("NEW " + CustomerRef + "-" + Number).
  *
  *  5. MERGE WITH LIST - matched to separator rows purely by ORDER (list row 1
  *     -> first separator row, and so on). The counts must be equal, otherwise
@@ -107,11 +109,25 @@ function stripLeading(value: string, prefix: string): string {
   return value;
 }
 
+// Customers whose note is "NEW {CustomerRef}-{Number}" instead of the usual format.
+const REF_FIRST_CUSTOMERS = ["DUGGAN J&F STEEL BUILDINGS LTD"];
+
+function isRefFirstCustomer(customer: string): boolean {
+  const name = customer.replace(/\*/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+  return REF_FIRST_CUSTOMERS.includes(name);
+}
+
 export function buildBlank(
   number: string,
   customerRef: string,
-  jobNumber: string
+  jobNumber: string,
+  customer = ""
 ): string {
+  if (isRefFirstCustomer(customer)) {
+    const ref = customerRef.trim();
+    return (ref ? `NEW ${ref}-${number}` : `NEW ${number}`).toUpperCase();
+  }
+
   let out = `NEW CERTS ${number}`;
   if (customerRef) out += ` PO ${stripLeading(customerRef, "PO")}`;
   if (jobNumber) out += ` REF ${stripLeading(jobNumber, "REF")}`;
@@ -172,6 +188,7 @@ function blanksFromRows(header: string[], data: string[][]): string[] {
     header.findIndex((h) => norm(h) === name.toLowerCase());
 
   const colNumber = findCol("Number");
+  const colCustomer = findCol("Customer");
   const colCustRef = findCol("Customer Ref");
   const colJobNum = findCol("Job Number (Particulars)");
   const colBlank = findCol("BLANK");
@@ -186,7 +203,8 @@ function blanksFromRows(header: string[], data: string[][]): string[] {
       return buildBlank(
         get(row, colNumber),
         get(row, colCustRef),
-        get(row, colJobNum)
+        get(row, colJobNum),
+        get(row, colCustomer)
       );
     });
 }

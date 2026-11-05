@@ -140,7 +140,8 @@ export default function CertCombinePage() {
           Confirmation Notes on the blank row before each file, matched by
           order only - so the list needs the same number of rows as there are
           files, in the same order. If BLANK is empty it is built from
-          Number, Customer Ref and Job Number.
+          Number, Customer Ref and Job Number (for DUGGAN J&amp;F STEEL
+          BUILDINGS LTD it is NEW Customer Ref-Number).
         </p>
       </section>
 

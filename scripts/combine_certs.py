@@ -50,6 +50,8 @@ change these constants/functions if the rules ever change):
      colon), so the result never contains "PO PO ..." or "REF REF ...".
      CustomerRef/JobNumber are NOT trimmed of internal/trailing whitespace
      otherwise -- only the redundant leading prefix is stripped.
+     Exception: for DUGGAN J&F STEEL BUILDINGS LTD it is
+       BLANK = UPPER("NEW " + CustomerRef + "-" + Number)
 
   5. MERGE WITH LIST -- the BLANK values are matched to separator rows purely
      by POSITION/ORDER (list row 1 -> 1st separator row, list row 2 -> 2nd,
@@ -128,7 +130,20 @@ def _strip_leading(value: str, prefix: str) -> str:
     return value
 
 
-def build_blank(number: str, customer_ref: str, job_number: str) -> str:
+# Customers whose note is "NEW {CustomerRef}-{Number}" instead of the usual format.
+REF_FIRST_CUSTOMERS = {"DUGGAN J&F STEEL BUILDINGS LTD"}
+
+
+def is_ref_first_customer(customer: str) -> bool:
+    name = " ".join((customer or "").replace("*", "").split()).upper()
+    return name in REF_FIRST_CUSTOMERS
+
+
+def build_blank(number: str, customer_ref: str, job_number: str, customer: str = "") -> str:
+    if is_ref_first_customer(customer):
+        ref = (customer_ref or "").strip()
+        return (f"NEW {ref}-{number}" if ref else f"NEW {number}").upper()
+
     out = f"NEW CERTS {number}"
     if customer_ref:
         out += f" PO {_strip_leading(customer_ref, 'PO')}"
@@ -172,6 +187,7 @@ def read_list_csv(list_path: Path):
             return None
 
         col_number = find_col("Number")
+        col_customer = find_col("Customer")
         col_custref = find_col("Customer Ref")
         col_jobnum = find_col("Job Number (Particulars)")
         col_blank = find_col("BLANK")
@@ -186,6 +202,7 @@ def read_list_csv(list_path: Path):
                         row.get(col_number, ""),
                         row.get(col_custref, ""),
                         row.get(col_jobnum, ""),
+                        row.get(col_customer, ""),
                     )
                 )
         return results
