@@ -228,7 +228,10 @@ export default function Page() {
       .then(data => setRows(data.rows || []));
   }, [cat, item, diam, length]);
 
+  // Re-picking the value already selected must not clear the boxes below it: the effects that
+  // refill them only run when the value changes, so they would stay empty.
   const handleCategoryChange = (value: string) => {
+    if (value === cat) return;
     setCat(value);
     setItem("");
     setItemMenuOpen(false);
@@ -242,9 +245,10 @@ export default function Page() {
   };
 
   const handleItemChange = (value: string) => {
-    setItem(value);
     setItemMenuOpen(false);
     setItemQuery("");
+    if (value === item) return;
+    setItem(value);
     setDiam("");
     setLength("");
     setDiameters([]);
@@ -253,6 +257,7 @@ export default function Page() {
   };
 
   const handleDiameterChange = (value: string) => {
+    if (value === diam) return;
     setDiam(value);
     setLength("");
     setLengths([]);
