@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabase";
+import { fetchAllPages } from "@/lib/supabasePaging";
 import { escapeLike } from "@/lib/exactMatch";
 import { ADMIN_SESSION_COOKIE, isValidAdminToken } from "@/lib/adminAuth";
 
@@ -26,11 +27,16 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Missing area" }, { status: 400 });
     }
 
-    const { data, error } = await supabase
-      .from("stock_flat")
-      .select("location, qty")
-      .eq("area", area)
-      .ilike("location", `${escapeLike(prefix)}%`);
+    // Paged: a plain select stops at 1000 rows, which would under-count what gets cleared
+    const { data, error } = await fetchAllPages<PreviewRow & { id: number }>((from, to) =>
+      supabase
+        .from("stock_flat")
+        .select("id, location, qty")
+        .eq("area", area)
+        .ilike("location", `${escapeLike(prefix)}%`)
+        .order("id", { ascending: true })
+        .range(from, to)
+    );
 
     if (error) throw new Error(error.message);
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { fetchAllPages } from "@/lib/supabasePaging";
 import { escapeLike, exactIlike } from "@/lib/exactMatch";
 
 export async function GET(req: Request) {
@@ -43,20 +44,25 @@ export async function GET(req: Request) {
       return NextResponse.json({ locations });
     }
 
-    let query = supabase
-      .from("stock_flat")
-      .select("id, location, pallet_id, area, item, size, qty, stock_check, needs_label");
+    // Paged: a plain select stops at 1000 rows (an area-wide preview can be more than that)
+    const { data, error } = await fetchAllPages((from, to) => {
+      let query = supabase
+        .from("stock_flat")
+        .select("id, location, pallet_id, area, item, size, qty, stock_check, needs_label");
 
-    if (locationQuery && matchMode === "exact") {
-      query = query.ilike(field, exactIlike(locationQuery));
-    } else if (locationPattern) {
-      query = query.ilike(field, locationPattern);
-    }
-    if (area) query = query.eq("area", area);
+      if (locationQuery && matchMode === "exact") {
+        query = query.ilike(field, exactIlike(locationQuery));
+      } else if (locationPattern) {
+        query = query.ilike(field, locationPattern);
+      }
+      if (area) query = query.eq("area", area);
 
-    const { data, error } = await query
-      .order("location", { ascending: true, nullsFirst: false })
-      .order("pallet_id", { ascending: true });
+      return query
+        .order("location", { ascending: true, nullsFirst: false })
+        .order("pallet_id", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to);
+    });
 
     if (error) throw error;
 
