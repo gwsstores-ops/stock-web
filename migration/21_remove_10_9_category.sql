@@ -19,4 +19,7 @@ delete from product where id in (294, 677);
 update product set cat = 'BOLTS' where cat = '10.9' and item = 'BOLT 10.9 ZP';
 update product set cat = 'SETS' where cat = '10.9' and item in ('SET 10.9 ZP', 'SET FINE THREAD 10.9 ZP');
 
+-- SET 10.9 ZP 11 X 123 (id 1156) was a test entry with no stock lines
+delete from product where id = 1156 and not exists (select 1 from stock_line where product_id = 1156);
+
 commit;
