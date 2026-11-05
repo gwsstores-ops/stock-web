@@ -1,8 +1,20 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { fetchAllPages } from "@/lib/supabasePaging";
 import { ADMIN_SESSION_COOKIE, isValidAdminToken } from "@/lib/adminAuth";
 import { validateBulkStockRows, type ProductRef, type RawStockRow } from "@/lib/stock/bulkAddStock";
+
+type ProductRow = {
+  id: number;
+  cat: string | null;
+  item: string | null;
+  size: string | null;
+  diam_value: number | string | null;
+  diam_display: string | null;
+  length_value: number | string | null;
+  length_display: string | null;
+};
 
 export async function POST(req: Request) {
   const cookieStore = await cookies();
@@ -18,9 +30,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No rows to check" }, { status: 400 });
     }
 
-    const { data, error } = await supabaseAdmin()
-      .from("product")
-      .select("id, cat, item, size, diam_value, diam_display, length_value, length_display");
+    const admin = supabaseAdmin();
+    // Every product, paged: a plain select stops at 1000 rows, and a product missed here is
+    // wrongly treated as new, then hits product_display_label_unique at insert time.
+    const { data, error } = await fetchAllPages<ProductRow>((from, to) =>
+      admin
+        .from("product")
+        .select("id, cat, item, size, diam_value, diam_display, length_value, length_display")
+        .order("id", { ascending: true })
+        .range(from, to)
+    );
     if (error) throw new Error(error.message);
 
     const products: ProductRef[] = (data ?? []).map((p) => ({

@@ -1,8 +1,20 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { fetchAllPages } from "@/lib/supabasePaging";
 import { ADMIN_SESSION_COOKIE, isValidAdminToken } from "@/lib/adminAuth";
 import { validateBulkStockRows, type ProductRef, type RawStockRow } from "@/lib/stock/bulkAddStock";
+
+type ProductRow = {
+  id: number;
+  cat: string | null;
+  item: string | null;
+  size: string | null;
+  diam_value: number | string | null;
+  diam_display: string | null;
+  length_value: number | string | null;
+  length_display: string | null;
+};
 
 export async function POST(req: Request) {
   const cookieStore = await cookies();
@@ -23,9 +35,15 @@ export async function POST(req: Request) {
     // Re-validate server-side against the current catalog - never trust a
     // client-reported "no errors", the product table may have changed since
     // the browser last checked.
-    const { data: productData, error: productError } = await admin
-      .from("product")
-      .select("id, cat, item, size, diam_value, diam_display, length_value, length_display");
+    // Every product, paged: a plain select stops at 1000 rows, and a product missed here is
+    // wrongly treated as new, then hits product_display_label_unique at insert time.
+    const { data: productData, error: productError } = await fetchAllPages<ProductRow>((from, to) =>
+      admin
+        .from("product")
+        .select("id, cat, item, size, diam_value, diam_display, length_value, length_display")
+        .order("id", { ascending: true })
+        .range(from, to)
+    );
     if (productError) throw new Error(productError.message);
 
     const products: ProductRef[] = (productData ?? []).map((p) => ({
