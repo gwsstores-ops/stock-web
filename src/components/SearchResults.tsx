@@ -64,10 +64,15 @@ const getItemStyle = (item: string): CSSProperties => {
 const isMixPallet = (palletId: string | null) =>
   !!palletId && palletId.toUpperCase().includes("(MIX-");
 
+// GWS floor locations ("FLOOR 1".."FLOOR 5") get a button that shows where the floors are
+const isGwsFloor = (area: string, location: string | null) =>
+  area === "GWS" && !!location && location.trim().toUpperCase().startsWith("FLOOR");
+
 export default function SearchResults({ rows }: SearchResultsProps) {
   const [mixModalPalletId, setMixModalPalletId] = useState<string | null>(null);
   const [mixModalRows, setMixModalRows] = useState<SearchResultRow[]>([]);
   const [mixModalLoading, setMixModalLoading] = useState(false);
+  const [floorMapLocation, setFloorMapLocation] = useState<string | null>(null);
 
   const openMixModal = async (palletId: string) => {
     setMixModalPalletId(palletId);
@@ -185,7 +190,22 @@ export default function SearchResults({ rows }: SearchResultsProps) {
                       )
                       .map((row) => (
                         <tr key={row.id}>
-                          {area !== "GWS-IN" && <td>{row.location ?? "—"}</td>}
+                          {area !== "GWS-IN" && (
+                            <td>
+                              {row.location ?? "—"}
+                              {isGwsFloor(area, row.location) && (
+                                <button
+                                  type="button"
+                                  className="floor-map-link"
+                                  onClick={() => setFloorMapLocation(row.location)}
+                                  title="Show where the GWS floors are"
+                                  aria-label={`Show where ${row.location} is`}
+                                >
+                                  ➜
+                                </button>
+                              )}
+                            </td>
+                          )}
                           <td>
                             {isMixPallet(row.pallet_id) ? (
                               <button
@@ -209,6 +229,38 @@ export default function SearchResults({ rows }: SearchResultsProps) {
             </section>
           ))}
       </div>
+
+      {floorMapLocation && (
+        <div className="modal-overlay" onClick={() => setFloorMapLocation(null)}>
+          <div
+            className="modal-panel"
+            style={{ width: "min(100%, 760px)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div>
+                <p className="section-kicker">GWS floor map</p>
+                <h2>{floorMapLocation}</h2>
+              </div>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setFloorMapLocation(null)}
+              >
+                Close
+              </button>
+            </div>
+
+            <Image
+              src="/gws-floor-map.png"
+              alt="GWS floor map: floors 1 to 5, the big door and the small door"
+              width={1536}
+              height={1024}
+              style={{ width: "100%", height: "auto" }}
+            />
+          </div>
+        </div>
+      )}
 
       {mixModalPalletId && (
         <div className="modal-overlay" onClick={closeMixModal}>
