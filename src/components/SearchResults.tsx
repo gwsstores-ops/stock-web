@@ -64,6 +64,23 @@ const getItemStyle = (item: string): CSSProperties => {
 const isMixPallet = (palletId: string | null) =>
   !!palletId && palletId.toUpperCase().includes("(MIX-");
 
+// Black circle with a white chevron: the "show more" button next to a location or pallet ID
+const ArrowButton = ({ label, onClick }: { label: string; onClick: () => void }) => (
+  <button type="button" className="row-arrow-button" onClick={onClick} title={label} aria-label={label}>
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+      <circle cx="12" cy="12" r="12" fill="#000" />
+      <path
+        d="M10 7.5 14.5 12 10 16.5"
+        fill="none"
+        stroke="#fff"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  </button>
+);
+
 // GWS floor locations ("FLOOR 1".."FLOOR 5") get a button that shows where the floors are
 const isGwsFloor = (area: string, location: string | null) =>
   area === "GWS" && !!location && location.trim().toUpperCase().startsWith("FLOOR");
@@ -194,29 +211,20 @@ export default function SearchResults({ rows }: SearchResultsProps) {
                             <td>
                               {row.location ?? "—"}
                               {isGwsFloor(area, row.location) && (
-                                <button
-                                  type="button"
-                                  className="floor-map-link"
+                                <ArrowButton
+                                  label={`Show where ${row.location} is`}
                                   onClick={() => setFloorMapLocation(row.location)}
-                                  title="Show where the GWS floors are"
-                                  aria-label={`Show where ${row.location} is`}
-                                >
-                                  ➜
-                                </button>
+                                />
                               )}
                             </td>
                           )}
                           <td>
-                            {isMixPallet(row.pallet_id) ? (
-                              <button
-                                type="button"
-                                className="pallet-id-link"
+                            {row.pallet_id ?? "—"}
+                            {isMixPallet(row.pallet_id) && (
+                              <ArrowButton
+                                label={`Show what is on ${row.pallet_id}`}
                                 onClick={() => openMixModal(row.pallet_id!)}
-                              >
-                                {row.pallet_id}
-                              </button>
-                            ) : (
-                              row.pallet_id ?? "—"
+                              />
                             )}
                           </td>
                           <td>{(row.qty ?? 0).toLocaleString()}</td>

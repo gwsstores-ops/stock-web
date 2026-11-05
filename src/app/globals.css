@@ -877,24 +877,14 @@ select.control,
   font-size: 13px;
 }
 
-.pallet-id-link {
-  padding: 0;
-  color: var(--blue-700);
-  background: none;
-  border: 0;
-  font: inherit;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.floor-map-link {
+.row-arrow-button {
+  display: inline-flex;
   margin-left: 6px;
-  padding: 0 4px;
-  color: var(--blue-700);
+  padding: 0;
+  vertical-align: middle;
   background: none;
   border: 0;
-  font: inherit;
-  font-weight: 900;
+  border-radius: 50%;
   cursor: pointer;
 }
 
