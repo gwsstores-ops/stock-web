@@ -1,4 +1,4 @@
-import type { PdfPageText, PdfWord } from "./types";
+import type { OcrPass, PdfPageText, PdfWord } from "./types";
 
 /**
  * Reads the words out of a packing list, with their positions.
@@ -19,6 +19,8 @@ export type ExtractProgress = {
   page: number;
   pages: number;
   stage: "text" | "ocr";
+  /** Which OCR reading this is, when the page is read more than once. */
+  pass?: { index: number; of: number };
 };
 
 type PdfJs = typeof import("pdfjs-dist");
@@ -63,7 +65,8 @@ type OcrBlock = {
 const ocrPage = async (
   worker: TesseractWorker,
   canvas: HTMLCanvasElement,
-  pageNumber: number
+  pageNumber: number,
+  scale: number
 ): Promise<PdfWord[]> => {
   const result = await worker.recognize(canvas, {}, { blocks: true });
   const blocks = ((result.data as unknown as { blocks?: OcrBlock[] | null })
@@ -83,15 +86,36 @@ const ocrPage = async (
       page: pageNumber,
       // Back to PDF points, measuring y up from the foot of the page so the
       // numbers line up with what the text layer would have given.
-      x: word.bbox.x0 / OCR_SCALE,
-      y: (height - word.bbox.y1) / OCR_SCALE,
+      x: word.bbox.x0 / scale,
+      y: (height - word.bbox.y1) / scale,
       text: word.text
     }));
 };
 
+/** Turns a rendered page pure black and white at the given grey level. */
+const threshold = (context: CanvasRenderingContext2D, canvas: HTMLCanvasElement, level: number) => {
+  const image = context.getImageData(0, 0, canvas.width, canvas.height);
+  const data = image.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const grey = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    const value = grey < level ? 0 : 255;
+    data[i] = value;
+    data[i + 1] = value;
+    data[i + 2] = value;
+  }
+
+  context.putImageData(image, 0, 0);
+};
+
+/**
+ * Pass `ocrPasses` for a supplier whose scans need it (see SupplierRules.ocr):
+ * each scanned page is then OCR'd once per pass instead of once as rendered.
+ */
 export const extractPdf = async (
   file: File,
-  onProgress?: (progress: ExtractProgress) => void
+  onProgress?: (progress: ExtractProgress) => void,
+  ocrPasses?: OcrPass[]
 ): Promise<PdfPageText[]> => {
   const pdfjs = await loadPdfJs();
   const data = new Uint8Array(await file.arrayBuffer());
@@ -137,32 +161,48 @@ export const extractPdf = async (
         continue;
       }
 
-      onProgress?.({ page: pageNumber, pages: doc.numPages, stage: "ocr" });
+      const passes: (OcrPass | null)[] = ocrPasses?.length ? ocrPasses : [null];
+      const readings: PdfWord[][] = [];
 
-      const viewport = page.getViewport({ scale: OCR_SCALE });
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.ceil(viewport.width);
-      canvas.height = Math.ceil(viewport.height);
+      for (const [index, pass] of passes.entries()) {
+        onProgress?.({
+          page: pageNumber,
+          pages: doc.numPages,
+          stage: "ocr",
+          pass: passes.length > 1 ? { index: index + 1, of: passes.length } : undefined
+        });
 
-      const context = canvas.getContext("2d");
+        const scale = pass?.scale ?? OCR_SCALE;
+        const viewport = page.getViewport({ scale });
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
 
-      if (!context) {
-        pages.push({ page: pageNumber, words, ocr: false });
-        continue;
+        const context = canvas.getContext("2d", { willReadFrequently: Boolean(pass) });
+
+        if (!context) break;
+
+        await page.render({ canvas, canvasContext: context, viewport }).promise;
+        if (pass) threshold(context, canvas, pass.threshold);
+
+        if (!worker) {
+          const { createWorker } = await import("tesseract.js");
+          worker = await createWorker("eng");
+        }
+
+        readings.push(await ocrPage(worker, canvas, pageNumber, scale));
       }
 
-      await page.render({ canvas, canvasContext: context, viewport }).promise;
-
-      if (!worker) {
-        const { createWorker } = await import("tesseract.js");
-        worker = await createWorker("eng");
-      }
-
-      pages.push({
-        page: pageNumber,
-        words: await ocrPage(worker, canvas, pageNumber),
-        ocr: true
-      });
+      pages.push(
+        readings.length
+          ? {
+              page: pageNumber,
+              words: readings[0],
+              ocr: true,
+              passes: readings.length > 1 ? readings : undefined
+            }
+          : { page: pageNumber, words, ocr: false }
+      );
     }
   } finally {
     await worker?.terminate();

@@ -86,7 +86,7 @@ export default function ContainerLabelsPage() {
 
       if (!supplier) return;
 
-      const pages = await extractPdf(file, setProgress);
+      const pages = await extractPdf(file, setProgress, supplier.ocr);
       const parsed = supplier.parse(pages);
 
       if (!parsed.length) {
@@ -294,7 +294,9 @@ export default function ContainerLabelsPage() {
         {progress && (
           <p className="helper-text">
             {progress.stage === "ocr"
-              ? `Running OCR on page ${progress.page} of ${progress.pages}...`
+              ? `Running OCR on page ${progress.page} of ${progress.pages}${
+                  progress.pass ? ` (reading ${progress.pass.index} of ${progress.pass.of})` : ""
+                }...`
               : `Reading page ${progress.page} of ${progress.pages}...`}
           </p>
         )}

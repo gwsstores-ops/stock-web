@@ -10,6 +10,8 @@ export type PdfPageText = {
   words: PdfWord[];
   /** True when the page had no embedded text layer and was read by OCR. */
   ocr: boolean;
+  /** Every OCR reading of the page, when the supplier asks for several. */
+  passes?: PdfWord[][];
 };
 
 /** One parsed packing-list line, before pallet numbering is applied. */
@@ -40,6 +42,8 @@ export type ContainerRow = ParsedLine & {
   size: string;
 };
 
+export type OcrPass = { scale: number; threshold: number };
+
 export type SupplierRules = {
   id: string;
   label: string;
@@ -47,5 +51,11 @@ export type SupplierRules = {
   ready: boolean;
   /** A short description of what the parser keys off, shown on the rules page. */
   notes: string[];
+  /**
+   * For scans that read badly at the default settings: OCR the page once per
+   * entry, rendered at that scale and turned to pure black and white at that
+   * grey level (0-255). The parser gets every reading in `passes`.
+   */
+  ocr?: OcrPass[];
   parse: (pages: PdfPageText[]) => ParsedLine[];
 };

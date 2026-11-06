@@ -1,5 +1,6 @@
 import type { SupplierRules } from "../types";
 import { gdpa } from "./gdpa";
+import { hamidi } from "./hamidi";
 import { longThread } from "./longThread";
 import { yonghi } from "./yonghi";
 
@@ -20,6 +21,7 @@ const pending = (id: string, label: string): SupplierRules => ({
 
 export const SUPPLIERS: SupplierRules[] = [
   gdpa,
+  hamidi,
   longThread,
   yonghi,
   pending("NINGBO_JINDING", "NINGBO JINDING")
