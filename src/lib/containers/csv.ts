@@ -1,5 +1,6 @@
 import type { ContainerRow, ParsedLine } from "./types";
 import { padPallet, toCsvNumber } from "./rules";
+import { parseCsv } from "@/lib/certs/combine";
 
 // Matches stock_import_sync()'s reading of the old `stock` table: `location`
 // is the bay a pallet sits in (every freshly landed pallet sits in the
@@ -83,4 +84,74 @@ export const toCsv = (rows: ContainerRow[], cont: string): string => {
   );
 
   return [CSV_HEADER.join(","), ...lines].join("\n");
+};
+
+const MIX_SUFFIX = /\s*\(MIX-\d+\)\s*$/i;
+
+const toNumber = (text: string): number | null => {
+  const cleaned = text.replace(/,/g, "").trim();
+  const value = Number(cleaned);
+  return cleaned && Number.isFinite(value) ? value : null;
+};
+
+/**
+ * Reads a pallet-label CSV back into lines - either one this tool wrote, or
+ * one filled in by hand for a supplier with no rules yet. Only `item` and
+ * `qty` are strictly needed for a label; the pallet number comes from `pal`,
+ * or failing that from the end of `pallet_id` (eg YF701_01 -> 01). MIX
+ * suffixes are dropped because buildRows works them out again.
+ */
+export const fromCsv = (text: string): { lines: ParsedLine[]; cont: string } => {
+  const [header = [], ...data] = parseCsv(text);
+  const columns = header.map((name) => name.trim().toLowerCase());
+  const col = (name: string) => columns.indexOf(name);
+
+  if (col("item") < 0 || col("qty") < 0) {
+    throw new Error("The CSV needs at least an item and a qty column.");
+  }
+
+  let cont = "";
+
+  const lines = data
+    .filter((cells) => cells.some((cell) => cell.trim()))
+    .map((cells): ParsedLine => {
+      const get = (name: string) => (col(name) >= 0 ? (cells[col(name)] ?? "").trim() : "");
+      const palletId = get("pallet_id").replace(MIX_SUFFIX, "");
+      const underscore = palletId.lastIndexOf("_");
+
+      if (!cont) cont = get("cont") || (underscore > 0 ? palletId.slice(0, underscore) : "");
+
+      const pallet =
+        get("pal").replace(MIX_SUFFIX, "") ||
+        (underscore > 0 ? palletId.slice(underscore + 1) : palletId);
+
+      const diamDisplay = get("diam_display") || get("diam_value");
+      const lengthDisplay = get("length_display") || get("length_value");
+      const size = get("size").toUpperCase();
+      const item = get("item").toUpperCase() || null;
+      const qty = toNumber(get("qty"));
+
+      const review: string[] = [];
+      if (!pallet) review.push("No pallet number");
+      if (!item) review.push("No item");
+      if (qty === null) review.push("No qty");
+
+      return {
+        pallet,
+        cat: get("cat").toUpperCase() || null,
+        item,
+        diamValue: toNumber(get("diam_value") || diamDisplay),
+        lengthValue: toNumber(get("length_value") || lengthDisplay),
+        diamDisplay,
+        lengthDisplay,
+        sizeOverride: size && size !== `${diamDisplay} X ${lengthDisplay}` ? size : null,
+        qty,
+        po: get("po"),
+        description: "",
+        rawSize: get("size"),
+        review
+      };
+    });
+
+  return { lines, cont: cont.toUpperCase() };
 };

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import AppHeader from "@/components/AppHeader";
 import { extractPdf, type ExtractProgress } from "@/lib/containers/extract";
-import { buildRows, toCsv } from "@/lib/containers/csv";
+import { buildRows, fromCsv, toCsv } from "@/lib/containers/csv";
 import { findSupplier, SUPPLIERS } from "@/lib/containers/suppliers";
 import type { ParsedLine } from "@/lib/containers/types";
 import { buildBulkLabelPdf } from "@/lib/bulkLabelPdf";
@@ -58,10 +58,11 @@ export default function ContainerLabelsPage() {
 
   const flaggedCount = rows.filter((row) => row.review.length > 0).length;
 
-  const canRead = Boolean(file && supplier?.ready && contRef);
+  const isCsv = Boolean(file?.name.toLowerCase().endsWith(".csv"));
+  const canRead = Boolean(file && (isCsv || (supplier?.ready && contRef)));
 
   const handleRead = async () => {
-    if (!file || !supplier || !canRead) return;
+    if (!file || !canRead) return;
 
     setReading(true);
     setError("");
@@ -70,6 +71,21 @@ export default function ContainerLabelsPage() {
     setProgress(null);
 
     try {
+      if (isCsv) {
+        const fromFile = fromCsv(await file.text());
+
+        if (!fromFile.lines.length) throw new Error("The CSV has no rows.");
+        if (!contRef && !fromFile.cont) {
+          throw new Error("The CSV has no cont or pallet_id column - enter the supplier ref.");
+        }
+
+        if (!contRef) setCont(fromFile.cont);
+        setLines(fromFile.lines);
+        return;
+      }
+
+      if (!supplier) return;
+
       const pages = await extractPdf(file, setProgress);
       const parsed = supplier.parse(pages);
 
@@ -82,7 +98,9 @@ export default function ContainerLabelsPage() {
       setOcrPages(pages.filter((page) => page.ocr).map((page) => page.page));
       setLines(parsed);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not read the PDF");
+      setError(
+        err instanceof Error ? err.message : `Could not read the ${isCsv ? "CSV" : "PDF"}`
+      );
     } finally {
       setReading(false);
       setProgress(null);
@@ -156,11 +174,11 @@ export default function ContainerLabelsPage() {
         </div>
 
         <label className="field">
-          <span className="field-label">PDF</span>
+          <span className="field-label">PDF or CSV</span>
           <input
             ref={fileInputRef}
             type="file"
-            accept="application/pdf,.pdf"
+            accept="application/pdf,.pdf,text/csv,.csv"
             className="control"
             onChange={(e) => {
               setFile(e.target.files?.[0] ?? null);
@@ -172,7 +190,10 @@ export default function ContainerLabelsPage() {
 
         <p className="helper-text">
           Scanned packing lists are read by OCR, which takes a little longer and
-          is worth checking line by line.
+          is worth checking line by line. A CSV in the pallet-label layout
+          (area, cont, pal, pallet_id, cat, item, size, qty...) skips the
+          supplier rules and goes straight to labels - only item and qty are
+          required.
         </p>
       </section>
 
@@ -205,7 +226,11 @@ export default function ContainerLabelsPage() {
           </select>
         </label>
 
-        {supplier && (
+        {isCsv && (
+          <p className="helper-text">Not needed for a CSV.</p>
+        )}
+
+        {supplier && !isCsv && (
           <details className="rules-panel">
             <summary>How {supplier.label} packing lists are read</summary>
             <ul className="rules-list">
@@ -240,6 +265,7 @@ export default function ContainerLabelsPage() {
         <p className="helper-text">
           This becomes the <strong>cont</strong> column, and every pallet is
           labelled {contRef || "REF"}_01, {contRef || "REF"}_02 and so on.
+          {isCsv && " Leave blank to take it from the CSV."}
         </p>
       </section>
 
@@ -251,7 +277,11 @@ export default function ContainerLabelsPage() {
             onClick={handleRead}
             disabled={!canRead || reading}
           >
-            {reading ? "Reading the PDF..." : "Read the packing list"}
+            {reading
+              ? `Reading the ${isCsv ? "CSV" : "PDF"}...`
+              : isCsv
+                ? "Read the CSV"
+                : "Read the packing list"}
           </button>
 
           {lines && (
@@ -269,7 +299,7 @@ export default function ContainerLabelsPage() {
           </p>
         )}
 
-        {supplier && !supplier.ready && (
+        {supplier && !supplier.ready && !isCsv && (
           <p className="helper-text">
             {supplier.label} packing lists are not supported yet. Send one over
             with the CSV it should produce and the rules can be added.
