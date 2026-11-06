@@ -242,15 +242,18 @@ export default function PdfSorterPage() {
             </>
           )}
 
-          {result.notFoundItems.length > 0 && (
+          {result.notFoundHeatNumbers.length > 0 && (
             <>
-              <p className="field-label">Not found</p>
+              <p className="field-label">
+                Not found - {result.notFoundHeatNumbers.length} heat number
+                {result.notFoundHeatNumbers.length === 1 ? "" : "s"}
+              </p>
               <div className="table-wrap">
                 <table className="data-table">
                   <tbody>
-                    {result.notFoundItems.map((note, i) => (
-                      <tr key={i}>
-                        <td>{note}</td>
+                    {result.notFoundHeatNumbers.map((heat) => (
+                      <tr key={heat}>
+                        <td>{heat}</td>
                       </tr>
                     ))}
                   </tbody>

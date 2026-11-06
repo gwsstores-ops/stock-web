@@ -33,6 +33,8 @@ export type SortResult = {
   notFoundCsv: string;
   details: string[];
   notFoundItems: string[];
+  /** Each heat number that wasn't found, once, in natural sort order. */
+  notFoundHeatNumbers: string[];
   multipleMatchItems: string[];
   customerNotes: string[];
   mergeNotes: string[];
@@ -426,6 +428,7 @@ export async function sortPdfs(
     notFoundCsv,
     details,
     notFoundItems,
+    notFoundHeatNumbers: sortedNotFound,
     multipleMatchItems,
     customerNotes,
     mergeNotes
