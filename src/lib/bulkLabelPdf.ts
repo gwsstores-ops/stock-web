@@ -114,8 +114,8 @@ export const buildBulkLabelPdf = async (rows: ContainerRow[], date?: Date): Prom
 };
 
 /** The largest font, up to `max`, that keeps `text` within `width` - shrinks only when the text itself would otherwise overflow. */
-const fit = (doc: Doc, text: string, max: number, width: number) => {
-  doc.setFont("helvetica", "bold");
+const fit = (doc: Doc, text: string, max: number, width: number, style: "bold" | "normal" = "bold") => {
+  doc.setFont("helvetica", style);
   doc.setFontSize(max);
   const measured = doc.getTextWidth(text);
   return measured > width ? Math.max(BLOCK_MIN_PT, (max * width) / measured) : max;
@@ -233,12 +233,14 @@ const drawSlot = async (doc: Doc, QRCode: typeof import("qrcode"), row: Containe
   // not centered as one unit. On a MIX pallet the value has to end before the
   // MIX band, which reaches much further left than the diamond alone.
   const qtyRight = mixLabel ? mixTagLeft(doc, DIAMOND_CX, mixLabel) - MIX_TAG_PAD_X : PAGE_W - MARGIN;
-  const qtyPt = fit(doc, qtyText, QTY_MAX_PT, qtyRight - QTY_VALUE_X);
+  // Not bold, unlike the rest of the label.
+  const qtyPt = fit(doc, qtyText, QTY_MAX_PT, qtyRight - QTY_VALUE_X, "normal");
   const qtyBaseline = slotTop + QTY_BASELINE_Y;
   doc.setFontSize(QTY_MAX_PT);
   doc.text("=", QTY_EQUALS_X, qtyBaseline);
   doc.setFontSize(qtyPt);
   doc.text(qtyText, QTY_VALUE_X, qtyBaseline);
+  doc.setFont("helvetica", "bold");
 
   const diamondCy = slotTop + DIAMOND_CY;
   if (mixLabel) drawMixTag(doc, DIAMOND_CX, diamondCy, mixLabel);
