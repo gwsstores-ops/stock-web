@@ -36,6 +36,10 @@
  *     "HEAT NO 1: <heat> (...)\nHEAT NO 2: <heat> (...)", the row is repeated
  *     once per heat (same File/Quantity/Line/Product/Description) and the
  *     notes cell holds just that heat number, in the order listed.
+ *
+ *  7. HEAT SLASHES - every "/" in a product row's Confirmation Notes (its
+ *     heat number) becomes "_", eg XI3045059023/2 -> XI3045059023_2. The
+ *     separator rows' cert notes are left as they are.
  */
 
 import type ExcelJSType from "exceljs";
@@ -87,9 +91,17 @@ export function heatNumbers(notes: CellValue): string[] {
   );
 }
 
+// Rule 7
+export function cleanHeat(notes: CellValue): CellValue {
+  return typeof notes === "string" ? notes.replace(/\//g, "_") : notes;
+}
+
 function splitHeats(row: SourceRow): SourceRow[] {
   const heats = heatNumbers(row.notes);
-  return heats.length ? heats.map((notes) => ({ ...row, notes })) : [row];
+  return (heats.length ? heats.map((notes) => ({ ...row, notes })) : [row]).map((r) => ({
+    ...r,
+    notes: cleanHeat(r.notes)
+  }));
 }
 
 // Rule 2

@@ -108,6 +108,10 @@ export default function CertCombinePage() {
               ..., HEAT NO 2: ...) is split into one row per heat, with just the
               heat number in Confirmation Notes.
             </li>
+            <li>
+              Any / in a heat number becomes _, eg XI3045059023/2 becomes
+              XI3045059023_2.
+            </li>
           </ul>
         </details>
       </section>

@@ -64,6 +64,10 @@ change these constants/functions if the rules ever change):
      "HEAT NO 1: <heat> (...)\\nHEAT NO 2: <heat> (...)", the row is repeated
      once per heat (same File/Quantity/Line/Product/Description) and the
      notes cell holds just that heat number, in the order listed.
+
+  7. HEAT SLASHES -- every "/" in a product row's Confirmation Notes (its
+     heat number) becomes "_", eg XI3045059023/2 -> XI3045059023_2. The
+     separator rows' cert notes are left as they are.
 """
 
 import argparse
@@ -105,6 +109,11 @@ def heat_numbers(notes) -> list:
     if notes is None:
         return []
     return HEAT_RE.findall(str(notes))
+
+
+# Rule 7
+def clean_heat(notes):
+    return notes.replace("/", "_") if isinstance(notes, str) else notes
 
 
 # ---------------------------------------------------------------------------
@@ -245,7 +254,7 @@ def combine(zip_path: Path, list_path: Path | None, out_path: Path):
             quantity, line, product, description, notes = (list(row) + [None] * 5)[:5]
             if product_matches(product):
                 for heat in heat_numbers(notes) or [notes]:
-                    matched.append((quantity, line, product, description, heat))
+                    matched.append((quantity, line, product, description, clean_heat(heat)))
 
         # Rule 3: blank row before every file, including the first
         ws_out.append([None] * len(HEADERS))
