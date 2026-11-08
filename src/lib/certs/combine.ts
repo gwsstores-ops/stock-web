@@ -14,9 +14,9 @@
  *     "ISO4017G", starts with "933CEASS", or contains "HSFG" anywhere.
  *
  *  2. FILE NUMBERING - a file's number is the first run of digits in its
- *     filename ("01.xlsx" -> 1, "Excel (79).xlsx" -> 79, no digits -> 1).
- *     Files are combined in ascending numeric order and labelled with a
- *     zero-padded 2-digit string in the File column.
+ *     filename ("01.xlsx" -> 1, "Excel (79).xlsx" -> 79, no digits -> 0).
+ *     Files are combined in ascending numeric order and labelled by position
+ *     (01, 02, ...) with a zero-padded 2-digit string in the File column.
  *
  *  3. LAYOUT - one blank row goes immediately BEFORE every file's block,
  *     including the very first file.
@@ -109,7 +109,8 @@ export function fileNumber(filename: string): number {
   const base = filename.split("/").pop() ?? filename;
   const stem = base.replace(/\.[^.]*$/, "");
   const m = stem.match(/(\d+)/);
-  return m ? parseInt(m[1], 10) : 1;
+  // No digits ("Excel.xlsx", Chrome's first download) sorts before "Excel (1).xlsx".
+  return m ? parseInt(m[1], 10) : 0;
 }
 
 // Rule 4
@@ -380,7 +381,8 @@ export async function combineCerts(
 
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i];
-    const label = String(fileNumber(entry.name)).padStart(2, "0");
+    // Label by position so labels run 01..NN in the combined order.
+    const label = String(i + 1).padStart(2, "0");
 
     const wbIn = new ExcelJS.Workbook();
     await wbIn.xlsx.load(await entry.async("arraybuffer"));
