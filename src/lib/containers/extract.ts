@@ -15,6 +15,21 @@ const TEXT_LAYER_MIN_WORDS = 12;
 /** Rendering above the PDF's own size gives the OCR engine something to read. */
 const OCR_SCALE = 3;
 
+/**
+ * Below this mean OCR confidence (0-100) a page may have been scanned
+ * sideways, so it's read again turned a quarter each way and the best reading
+ * kept. Upright scans read at 80+ (GDPA, JINDING) and 55 for HAMIDI's poor
+ * scan; JINDING's sideways page read 44 as it came.
+ */
+const UPRIGHT_MIN_CONFIDENCE = 50;
+
+/**
+ * pdf.js decodes JBIG2 and JPEG 2000 scan images (common in scanned packing
+ * lists) with these, copied from pdfjs-dist/wasm. Without them those pages
+ * render blank.
+ */
+const PDFJS_WASM_URL = "/pdfjs-wasm/";
+
 export type ExtractProgress = {
   page: number;
   pages: number;
@@ -47,6 +62,8 @@ type OcrWord = {
   bbox: { x0: number; y0: number; x1: number; y1: number };
 };
 
+type OcrReading = { words: PdfWord[]; confidence: number };
+
 type OcrBlock = {
   paragraphs: {
     lines: {
@@ -67,7 +84,7 @@ const ocrPage = async (
   canvas: HTMLCanvasElement,
   pageNumber: number,
   scale: number
-): Promise<PdfWord[]> => {
+): Promise<OcrReading> => {
   const result = await worker.recognize(canvas, {}, { blocks: true });
   const blocks = ((result.data as unknown as { blocks?: OcrBlock[] | null })
     .blocks ?? []) as OcrBlock[];
@@ -80,16 +97,20 @@ const ocrPage = async (
 
   const height = canvas.height;
 
-  return words
-    .filter((word) => word.text.trim().length > 0)
-    .map((word) => ({
-      page: pageNumber,
-      // Back to PDF points, measuring y up from the foot of the page so the
-      // numbers line up with what the text layer would have given.
-      x: word.bbox.x0 / scale,
-      y: (height - word.bbox.y1) / scale,
-      text: word.text
-    }));
+  return {
+    confidence: result.data.confidence,
+    words: words
+      .filter((word) => word.text.trim().length > 0)
+      .map((word) => ({
+        page: pageNumber,
+        // Back to PDF points, measuring y up from the foot of the page so the
+        // numbers line up with what the text layer would have given.
+        x: word.bbox.x0 / scale,
+        y: (height - word.bbox.y1) / scale,
+        height: (word.bbox.y1 - word.bbox.y0) / scale,
+        text: word.text
+      }))
+  };
 };
 
 /** Turns a rendered page pure black and white at the given grey level. */
@@ -119,10 +140,11 @@ export const extractPdf = async (
 ): Promise<PdfPageText[]> => {
   const pdfjs = await loadPdfJs();
   const data = new Uint8Array(await file.arrayBuffer());
-  const doc = await pdfjs.getDocument({ data, useSystemFonts: true }).promise;
+  const doc = await pdfjs.getDocument({ data, useSystemFonts: true, wasmUrl: PDFJS_WASM_URL })
+    .promise;
   const pages: PdfPageText[] = [];
 
-  let worker: TesseractWorker | null = null;
+  let worker = null as TesseractWorker | null;
 
   try {
     for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber += 1) {
@@ -164,6 +186,32 @@ export const extractPdf = async (
       const passes: (OcrPass | null)[] = ocrPasses?.length ? ocrPasses : [null];
       const readings: PdfWord[][] = [];
 
+      /** Renders the page turned `turn` degrees on from upright and OCRs it. */
+      const read = async (pass: OcrPass | null, turn: number): Promise<OcrReading | null> => {
+        const scale = pass?.scale ?? OCR_SCALE;
+        const viewport = page.getViewport({ scale, rotation: (page.rotate + turn) % 360 });
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+
+        const context = canvas.getContext("2d", { willReadFrequently: Boolean(pass?.threshold) });
+
+        if (!context) return null;
+
+        await page.render({ canvas, canvasContext: context, viewport }).promise;
+        if (pass?.threshold) threshold(context, canvas, pass.threshold);
+
+        if (!worker) {
+          const { createWorker } = await import("tesseract.js");
+          worker = await createWorker("eng");
+        }
+
+        return ocrPage(worker, canvas, pageNumber, scale);
+      };
+
+      // Settled on the first reading, then kept for the rest.
+      let turn = 0;
+
       for (const [index, pass] of passes.entries()) {
         onProgress?.({
           page: pageNumber,
@@ -172,25 +220,21 @@ export const extractPdf = async (
           pass: passes.length > 1 ? { index: index + 1, of: passes.length } : undefined
         });
 
-        const scale = pass?.scale ?? OCR_SCALE;
-        const viewport = page.getViewport({ scale });
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.ceil(viewport.width);
-        canvas.height = Math.ceil(viewport.height);
+        let reading = await read(pass, turn);
 
-        const context = canvas.getContext("2d", { willReadFrequently: Boolean(pass) });
+        if (!reading) break;
 
-        if (!context) break;
-
-        await page.render({ canvas, canvasContext: context, viewport }).promise;
-        if (pass) threshold(context, canvas, pass.threshold);
-
-        if (!worker) {
-          const { createWorker } = await import("tesseract.js");
-          worker = await createWorker("eng");
+        if (index === 0 && reading.confidence < UPRIGHT_MIN_CONFIDENCE) {
+          for (const sideways of [90, 270]) {
+            const turned = await read(pass, sideways);
+            if (turned && turned.confidence > reading.confidence) {
+              reading = turned;
+              turn = sideways;
+            }
+          }
         }
 
-        readings.push(await ocrPage(worker, canvas, pageNumber, scale));
+        readings.push(reading.words);
       }
 
       pages.push(

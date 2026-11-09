@@ -311,6 +311,7 @@ const parse = (pages: PdfPageText[]): ParsedLine[] => {
       pallet,
       cat: "TEX SCREWS",
       item: row.text || null,
+      code: null,
       diamValue,
       lengthValue,
       diamDisplay,

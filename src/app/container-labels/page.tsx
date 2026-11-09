@@ -374,6 +374,7 @@ export default function ContainerLabelsPage() {
                   <th>Pallet ID</th>
                   <th>Category</th>
                   <th>Item</th>
+                  <th>Code</th>
                   <th>Diam</th>
                   <th>Length</th>
                   <th>Size</th>
@@ -422,6 +423,15 @@ export default function ContainerLabelsPage() {
                           <option key={item} value={item} />
                         ))}
                       </datalist>
+                    </td>
+                    <td>
+                      <input
+                        className="cell-input"
+                        value={row.code ?? ""}
+                        onChange={(e) =>
+                          updateLine(index, { code: e.target.value || null })
+                        }
+                      />
                     </td>
                     <td>
                       <input

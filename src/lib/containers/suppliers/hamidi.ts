@@ -407,6 +407,7 @@ const parse = (pages: PdfPageText[]): ParsedLine[] => {
       pallet,
       cat: assembled ? "ASSEMBLED" : "BOLTS",
       item: `${assembled ? "ASS" : "BOLT"} ${finish ?? "HDG"}`,
+      code: null,
       diamValue: size ? size[0] : null,
       lengthValue: size ? size[1] : null,
       diamDisplay: size ? String(size[0]) : "",

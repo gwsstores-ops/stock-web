@@ -2,6 +2,8 @@ export type PdfWord = {
   page: number;
   x: number;
   y: number;
+  /** OCR only: the word box's height, so `y + height` is its top edge. */
+  height?: number;
   text: string;
 };
 
@@ -20,6 +22,8 @@ export type ParsedLine = {
   pallet: string;
   cat: string | null;
   item: string | null;
+  /** The supplier's own item code, where its packing list has one. */
+  code: string | null;
   diamValue: number | null;
   lengthValue: number | null;
   diamDisplay: string;
@@ -54,7 +58,8 @@ export type SupplierRules = {
   /**
    * For scans that read badly at the default settings: OCR the page once per
    * entry, rendered at that scale and turned to pure black and white at that
-   * grey level (0-255). The parser gets every reading in `passes`.
+   * grey level (0-255, or 0 to leave it as rendered). The parser gets every
+   * reading in `passes`.
    */
   ocr?: OcrPass[];
   parse: (pages: PdfPageText[]) => ParsedLine[];

@@ -735,6 +735,7 @@ const parse = (pages: PdfPageText[]): ParsedLine[] => {
       pallet: caseNumbers[index].pallet,
       cat: classified.cat,
       item: classified.item,
+      code: null,
       diamValue: size.diamValue,
       lengthValue: size.lengthValue,
       diamDisplay: size.diamDisplay,

@@ -253,6 +253,7 @@ const parse = (pages: PdfPageText[]): ParsedLine[] => {
       pallet,
       cat: classified.cat,
       item: classified.item,
+      code: null,
       diamValue: size.diamValue,
       lengthValue: size.lengthValue,
       diamDisplay: size.diamDisplay,
