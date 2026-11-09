@@ -20,18 +20,22 @@ Runs in the user's Chrome through Claude in Chrome (`mcp__claude-in-chrome__*`),
 3. Click the layout button (shows **GWS Default**) and choose **Sales Invoice - Certs Layout**.
 4. Type `*` in the **Customer** column filter and press Enter. This shows cert customers only.
 5. Go to the **last page** (⏭). The bottom row is the newest invoice.
-6. **New bookmark:** if the newest invoice's Cert Notes is not already `&`, add `&` to it with Edit, then Cert Notes, then Continue (F9).
-7. **Start point:** the previous session's bookmark is the invoice above it whose Cert Notes contains `&`. The invoices to check are the ones **after** that bookmark, up to and including the newest one.
-8. **Read-only scan:** for each invoice in that range, select it and read the lower lines grid's **Confirmation Notes** column.
+6. **Already-done check:** if the newest invoice's Cert Notes already contains `&`, type `&` in the **Cert Notes** column filter and press Enter.
+   - If the newest invoice is the **only** row with `&`, Part 1 was already done in an earlier run. Clear the `&` filter and ask the user: "Part 1 looks done (the newest invoice holds the only `&`). Skip to Part 2?" If they say yes, go to Part 2. If they say no, ask them which invoice to start from.
+   - If there is an older `&` too, Part 1 is not finished. Clear the `&` filter and carry on with step 7.
+   - If the user already said Part 1 is done, skip this check and go straight to Part 2.
+7. **New bookmark:** if the newest invoice's Cert Notes is not already `&`, add `&` to it with Edit, then Cert Notes, then Continue (F9).
+8. **Start point:** the previous session's bookmark is the invoice above it whose Cert Notes contains `&`. The invoices to check are the ones **after** that bookmark, up to and including the newest one.
+9. **Read-only scan:** for each invoice in that range, select it and read the lower lines grid's **Confirmation Notes** column.
    - A **heat number** is any real value, for example `3043156002`, `DF16HDD075601A`, `GD9874050625A` or `r-245/r-173`.
    - **Ignore placeholders:** `.` and `na` do not count.
-9. **Show the user the plan before editing anything.** List which invoices get `#` and which stay blank, and flag any value you're unsure about. Wait for their go-ahead. After that, do all the edits without stopping for each one.
-10. **Edits** (Edit, then Cert Notes, then Continue / F9):
+10. **Show the user the plan before editing anything.** List which invoices get `#` and which stay blank, and flag any value you're unsure about. Wait for their go-ahead. After that, do all the edits without stopping for each one.
+11. **Edits** (Edit, then Cert Notes, then Continue / F9):
     - an invoice with any heat number gets `#`
     - the **newest** invoice gets `#&` if it has heat numbers, otherwise it stays `&`
     - the **old bookmark** invoice: remove the `&` (`#&` becomes `#`, `&` becomes blank)
     - Before typing, check that the field holds what you expect (blank, or `&`). If it holds anything else, stop and ask.
-11. Re-read the grid and confirm every Cert Notes value saved.
+12. Re-read the grid and confirm every Cert Notes value saved.
 
 ## Part 2 - exports for Cert Combine
 
