@@ -20,9 +20,10 @@ Runs in the user's Chrome through Claude in Chrome (`mcp__claude-in-chrome__*`),
 3. Click the layout button (shows **GWS Default**) and choose **Sales Invoice - Certs Layout**.
 4. Type `*` in the **Customer** column filter and press Enter. This shows cert customers only.
 5. Go to the **last page** (⏭). The bottom row is the newest invoice.
-6. **Already-done check:** if the newest invoice's Cert Notes already contains `&`, type `&` in the **Cert Notes** column filter and press Enter.
-   - If the newest invoice is the **only** row with `&`, Part 1 was already done in an earlier run. Clear the `&` filter and ask the user: "Part 1 looks done (the newest invoice holds the only `&`). Skip to Part 2?" If they say yes, go to Part 2. If they say no, ask them which invoice to start from.
-   - If there is an older `&` too, Part 1 is not finished. Clear the `&` filter and carry on with step 7.
+6. **Already-done check:** if the newest invoice's Cert Notes already contains `&`, type `&` in the **Cert Notes** column filter, then click the filter's funnel icon (right of the box) and choose **Contains**. This is the only filter in the job that uses Contains; every other filter stays on the default **Starts with**, which would miss `#&`.
+   - If the newest invoice is the **only** row with `&`, Part 1 was already done in an earlier run. Ask the user: "Part 1 looks done (the newest invoice holds the only `&`). Skip to Part 2?" If they say yes, go to Part 2. If they say no, ask them which invoice to start from.
+   - If there is an older `&` too, Part 1 is not finished. Carry on with step 7.
+   - Either way, first set the Cert Notes filter back to **Starts with** (funnel icon) and clear the `&`. Part 2's `#` filter needs Starts with.
    - If the user already said Part 1 is done, skip this check and go straight to Part 2.
 7. **New bookmark:** if the newest invoice's Cert Notes is not already `&`, add `&` to it with Edit, then Cert Notes, then Continue (F9).
 8. **Start point:** the previous session's bookmark is the invoice above it whose Cert Notes contains `&`. The invoices to check are the ones **after** that bookmark, up to and including the newest one.
@@ -43,7 +44,8 @@ Runs in the user's Chrome through Claude in Chrome (`mcp__claude-in-chrome__*`),
 2. Click the **Number** header **twice** to clear its sort.
 3. Click **Customer**, then **Customer Ref**, then **Number**. The headers should show sort order 1, 2 and 3.
 4. For each invoice from the top down: select it, click the **⋮** at the right of the **lower (lines) grid header**, then **Export to Excel**. Each download is named `Excel.xlsx`, `Excel (1).xlsx` and so on, in order.
-5. **Invoice list:** click the **⋮** at the right of the **upper (invoice) grid header**, then **Export to Excel**. This downloads `Sales_Invoices_Excel*.xlsx`.
+   - **Count the files after every batch.** Now and then an Export to Excel click leaves the menu open and nothing downloads. If the count is one short, find which invoice was missed before going on: compare the last files' contents (with `exceljs`) against the lines grid. A missed one in the middle would show up as two identical files at the end. Then re-export the missed invoice, but only if it was the last one. If it wasn't, stop and ask, because the files would be out of order.
+5. **Invoice list:** click the **⋮** at the right of the **upper (invoice) grid header**, then **Export to Excel**. An **Export To Excel** dialog opens. Choose **Export Current Page** (check the pager shows every `#` invoice on one page first), then click **Export**. This downloads `Sales_Invoices_Excel*.xlsx`.
 6. **Build the zip:** copy only this run's line exports, in download order, to a folder `certs-YYYY-MM-DD/` named `01.xlsx`, `02.xlsx` and so on, then zip it as `certs-YYYY-MM-DD.zip`. Never rename them to invoice numbers. Cert Combine sorts by the number in the filename and matches the list **by order only**.
 7. **Verify** with the repo's `exceljs` (run node from the repo root): the list's data row count equals the file count, and the list's Number column order equals the order the files were exported in. Report both file paths to the user for the Cert Combine page (Step 1 = the zip, Step 2 = the list).
 
