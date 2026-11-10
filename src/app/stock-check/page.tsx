@@ -3,6 +3,7 @@
 import { useState } from "react";
 import AppHeader from "@/components/AppHeader";
 import { areaLabel } from "@/lib/areas";
+import { buildStockCheckLabelPdf } from "@/lib/stockCheckLabelPdf";
 
 type Row = {
   id: number;
@@ -24,6 +25,8 @@ export default function Page() {
   const [checkedRows, setCheckedRows] = useState<Row[]>([]);
 
   const [newLabelRows, setNewLabelRows] = useState<Row[] | null>(null);
+  const [labelsBuilding, setLabelsBuilding] = useState(false);
+  const [labelsError, setLabelsError] = useState("");
 
   /* ==============================
      LOAD OUTSTANDING / CHECKED
@@ -202,6 +205,30 @@ export default function Page() {
     if (!res.ok) {
       alert("Could not update location");
       loadBoth();
+    }
+  };
+
+  const printNewLabels = async () => {
+    if (!newLabelRows || newLabelRows.length === 0 || labelsBuilding) return;
+
+    setLabelsBuilding(true);
+    setLabelsError("");
+
+    try {
+      const blob = await buildStockCheckLabelPdf(newLabelRows);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = `new_labels_${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setLabelsError(err instanceof Error ? err.message : "Could not make the labels");
+    } finally {
+      setLabelsBuilding(false);
     }
   };
 
@@ -633,6 +660,15 @@ export default function Page() {
 
               <button
                 type="button"
+                onClick={printNewLabels}
+                disabled={labelsBuilding}
+                className="button button-secondary"
+              >
+                {labelsBuilding ? "Making labels..." : "Print Label"}
+              </button>
+
+              <button
+                type="button"
                 onClick={clearAllNewLabels}
                 className="button button-danger"
               >
@@ -641,6 +677,8 @@ export default function Page() {
             </>
           )}
         </div>
+
+        {labelsError && <p className="search-error">{labelsError}</p>}
 
         {newLabelRows && (
           <div className="table-wrap" style={{ marginTop: 16 }}>
