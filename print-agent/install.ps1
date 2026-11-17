@@ -5,7 +5,7 @@
 param(
   [Parameter(Mandatory = $true)][string]$Key,
   [string]$Url = 'https://stock-web-iota.vercel.app',
-  [string]$Printer = 'Brother HL-L8240CDW series Printer'
+  [string]$Printer = 'Brother HL-L5210DN series Printer'
 )
 
 $ErrorActionPreference = 'Stop'
