@@ -9,7 +9,6 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $dir = Join-Path $env:LOCALAPPDATA 'GWS Print Agent'
 New-Item -ItemType Directory -Force $dir | Out-Null
@@ -22,7 +21,9 @@ if (-not (Get-Printer -Name $Printer -ErrorAction SilentlyContinue)) {
 $sumatra = Join-Path $dir 'SumatraPDF.exe'
 if (-not (Test-Path $sumatra)) {
   $zip = Join-Path $env:TEMP 'SumatraPDF.zip'
-  Invoke-WebRequest -Uri 'https://www.sumatrapdfreader.org/dl/rel/3.5.2/SumatraPDF-3.5.2-64.zip' -OutFile $zip -UseBasicParsing
+  # curl.exe rather than Invoke-WebRequest: PowerShell's own requests are blocked here.
+  & (Join-Path $env:SystemRoot 'System32\curl.exe') -sSfL -o $zip 'https://www.sumatrapdfreader.org/dl/rel/3.5.2/SumatraPDF-3.5.2-64.zip'
+  if ($LASTEXITCODE -ne 0) { throw "Could not download SumatraPDF (curl error $LASTEXITCODE)" }
   Expand-Archive $zip -DestinationPath $dir -Force
   Remove-Item $zip
   Get-ChildItem $dir -Filter 'SumatraPDF*.exe' | Select-Object -First 1 | Rename-Item -NewName 'SumatraPDF.exe' -ErrorAction SilentlyContinue

@@ -4,13 +4,31 @@
 # %LOCALAPPDATA%\GWS Print Agent\config.json.
 
 $ErrorActionPreference = 'Stop'
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $dir = Join-Path $env:LOCALAPPDATA 'GWS Print Agent'
 $config = Get-Content (Join-Path $dir 'config.json') -Raw | ConvertFrom-Json
 $sumatra = Join-Path $dir 'SumatraPDF.exe'
 $logFile = Join-Path $dir 'print-agent.log'
-$headers = @{ Authorization = "Bearer $($config.key)" }
+$responseFile = Join-Path $dir 'response.json'
+$requestFile = Join-Path $dir 'request.json'
+
+# PowerShell's own web requests are blocked on the stores PC (firewall), but
+# Windows' built-in curl.exe gets through, so all calls go via curl.exe.
+$curl = Join-Path $env:SystemRoot 'System32\curl.exe'
+
+# POSTs to the site and returns the HTTP status code; the response body is
+# left in $responseFile. Throws if the site could not be reached at all.
+function Invoke-Agent($path, $jsonBody) {
+  $curlArgs = @('-s', '-X', 'POST', '-m', '30', '-o', $responseFile, '-w', '%{http_code}',
+    '-H', "Authorization: Bearer $($config.key)")
+  if ($jsonBody) {
+    [IO.File]::WriteAllText($requestFile, $jsonBody)
+    $curlArgs += @('-H', 'Content-Type: application/json', '--data-binary', "@$requestFile")
+  }
+  $code = & $curl @curlArgs "$($config.url)$path"
+  if ($LASTEXITCODE -ne 0) { throw "Could not reach the website (curl error $LASTEXITCODE)" }
+  return [int]$code
+}
 
 function Write-Log($message) {
   $line = '{0}  {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $message
@@ -24,12 +42,9 @@ function Send-Done($id, $ok, $errorText) {
   $body = @{ id = $id; ok = $ok; error = $errorText } | ConvertTo-Json
   for ($attempt = 1; $attempt -le 5; $attempt++) {
     try {
-      Invoke-RestMethod -Method Post -Uri "$($config.url)/api/print-jobs/done" -Headers $headers `
-        -ContentType 'application/json' -Body $body -TimeoutSec 30 | Out-Null
-      return
-    } catch {
-      Start-Sleep -Seconds (5 * $attempt)
-    }
+      if ((Invoke-Agent '/api/print-jobs/done' $body) -eq 200) { return }
+    } catch {}
+    Start-Sleep -Seconds (5 * $attempt)
   }
   Write-Log "Could not report job $id as done"
 }
@@ -42,11 +57,14 @@ Write-Log "Started, printing to '$($config.printer)'"
 
 while ($true) {
   try {
-    $resp = Invoke-WebRequest -Method Post -Uri "$($config.url)/api/print-jobs/next" -Headers $headers `
-      -UseBasicParsing -TimeoutSec 30
+    $status = Invoke-Agent '/api/print-jobs/next'
 
-    if ($resp.StatusCode -eq 200) {
-      $job = $resp.Content | ConvertFrom-Json
+    if ($status -ne 200 -and $status -ne 204) {
+      throw "The website answered $status"
+    }
+
+    if ($status -eq 200) {
+      $job = Get-Content $responseFile -Raw | ConvertFrom-Json
       $file = Join-Path $env:TEMP ("gws-print-{0}.pdf" -f $job.id)
 
       try {
