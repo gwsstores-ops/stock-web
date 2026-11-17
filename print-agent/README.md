@@ -1,6 +1,7 @@
 # GWS print agent
 
-Prints labels sent from the Pallet Label tool's **Print** button on the stores\nprinter (Brother HL-L5210DN), with no print box.
+Prints labels sent from the Pallet Label tool's **Print** button on the stores
+printer (Brother HL-L5210DN), with no print box.
 
 How it works: the page adds the PDF to the `print_job` table
 (`/api/print-jobs`). This agent, running on the stores PC, asks
