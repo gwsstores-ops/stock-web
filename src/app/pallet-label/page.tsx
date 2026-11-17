@@ -26,6 +26,8 @@ export default function PalletLabelPage() {
   const [today, setToday] = useState("");
   const [building, setBuilding] = useState(false);
   const [error, setError] = useState("");
+  const [printing, setPrinting] = useState(false);
+  const [printStatus, setPrintStatus] = useState("");
 
   useEffect(() => {
     setToday(formatLabelDate(new Date()));
@@ -127,6 +129,68 @@ export default function PalletLabelPage() {
     setItems((current) => (current.length <= 1 ? current : current.filter((_, i) => i !== blockIndex)));
   };
 
+  const makePdf = async () => {
+    const now = new Date();
+    const blob = await buildLabelPdf({
+      items: items.map((block) => ({
+        item: block.item,
+        sizes: block.sizes.slice(0, block.sizeCount),
+        qtys: block.qtys.slice(0, block.sizeCount)
+      })),
+      palletId,
+      date: now,
+      orientation
+    });
+
+    const safeId = palletId.trim().toUpperCase().replace(/[^A-Z0-9_-]+/g, "_");
+    return { blob, fileName: `label_${safeId}_${formatLabelDate(now)}.pdf` };
+  };
+
+  // Sends the label to the print queue, then watches it until the stores PC
+  // has printed it (or gives up waiting and says so).
+  const handlePrint = async () => {
+    if (!ready || building || printing) return;
+
+    setPrinting(true);
+    setError("");
+    setPrintStatus("Sending to the printer…");
+
+    try {
+      const { blob, fileName } = await makePdf();
+      const res = await fetch(`/api/print-jobs?name=${encodeURIComponent(fileName)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/pdf" },
+        body: blob
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not send the label to the printer");
+
+      setPrintStatus("Waiting for the stores PC to print it…");
+
+      for (let attempt = 0; attempt < 20; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        const check = await fetch(`/api/print-jobs?id=${data.id}`).then((r) => r.json());
+
+        if (check.status === "printed") {
+          setPrintStatus("Printed ✓");
+          return;
+        }
+        if (check.status === "failed") {
+          throw new Error(`The printer had a problem: ${check.error || "unknown error"}`);
+        }
+      }
+
+      setPrintStatus(
+        "Sent, but not printed yet. Is the stores PC switched on? It will print as soon as it is."
+      );
+    } catch (err) {
+      setPrintStatus("");
+      setError(err instanceof Error ? err.message : "Could not print the label");
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   const handleDownload = async () => {
     if (!ready || building) return;
 
@@ -134,24 +198,12 @@ export default function PalletLabelPage() {
     setError("");
 
     try {
-      const now = new Date();
-      const blob = await buildLabelPdf({
-        items: items.map((block) => ({
-          item: block.item,
-          sizes: block.sizes.slice(0, block.sizeCount),
-          qtys: block.qtys.slice(0, block.sizeCount)
-        })),
-        palletId,
-        date: now,
-        orientation
-      });
-
-      const safeId = palletId.trim().toUpperCase().replace(/[^A-Z0-9_-]+/g, "_");
+      const { blob, fileName } = await makePdf();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
 
       link.href = url;
-      link.download = `label_${safeId}_${formatLabelDate(now)}.pdf`;
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -323,12 +375,28 @@ export default function PalletLabelPage() {
           </p>
         )}
 
+        {printStatus && (
+          <p className="helper-text" role="status">
+            {printStatus}
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={handlePrint}
+          disabled={!ready || printing}
+          className="button button-primary button-block"
+          style={{ marginTop: 16 }}
+        >
+          {printing ? "Printing…" : "Print"}
+        </button>
+
         <button
           type="button"
           onClick={handleDownload}
           disabled={!ready || building}
-          className="button button-primary button-block"
-          style={{ marginTop: 16 }}
+          className="button button-secondary button-block"
+          style={{ marginTop: 10 }}
         >
           {building ? "Making label…" : "Download PDF"}
         </button>
