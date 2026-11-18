@@ -21,6 +21,7 @@ const newBlock = (): ItemBlock => ({
 export default function PalletLabelPage() {
   const [items, setItems] = useState<ItemBlock[]>([newBlock()]);
   const [palletId, setPalletId] = useState("");
+  const [location, setLocation] = useState("");
   const [orientation, setOrientation] = useState<LabelOrientation>("landscape");
   const [itemOptions, setItemOptions] = useState<string[]>([]);
   const [today, setToday] = useState("");
@@ -138,6 +139,7 @@ export default function PalletLabelPage() {
         qtys: block.qtys.slice(0, block.sizeCount)
       })),
       palletId,
+      location,
       date: now,
       orientation
     });
@@ -342,6 +344,17 @@ export default function PalletLabelPage() {
             value={palletId}
             onChange={(e) => setPalletId(e.target.value.toUpperCase())}
             placeholder="For example: 415ES_04"
+            className="control"
+            autoComplete="off"
+          />
+        </label>
+
+        <label className="field" style={{ marginTop: 14 }}>
+          <span className="field-label">Location (optional)</span>
+          <input
+            value={location}
+            onChange={(e) => setLocation(e.target.value.toUpperCase())}
+            placeholder="For example: W4-A3"
             className="control"
             autoComplete="off"
           />

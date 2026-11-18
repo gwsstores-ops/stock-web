@@ -12,6 +12,8 @@
  *
  * In landscape the page is wider but shorter, so the bottom block shares one row: QR code and
  * pallet ID on the left, the date on the right.
+ *
+ * An optional location (e.g. W4-A3) is printed small and italic just above the date.
  */
 
 export const MAX_SIZES = 8;
@@ -28,6 +30,8 @@ export type LabelOrientation = "portrait" | "landscape";
 export type LabelInput = {
   items: ItemEntry[];
   palletId: string;
+  // Optional storage location (e.g. "W4-A3"), printed small and italic just above the date
+  location?: string;
   date?: Date;
   orientation?: LabelOrientation;
 };
@@ -42,6 +46,7 @@ export const CONTENT_W = PAGE_W - MARGIN * 2;
 const ITEM_MAX_PT = 200;
 const PALLET_PT = 30;
 const DATE_PT = 66;
+const LOCATION_PT = 20;
 
 // Sizes grow to fill the space left, up to this font size
 const SIZE_MAX_PT = 200;
@@ -85,6 +90,7 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
 
   const palletId = input.palletId.trim().toUpperCase();
   const date = formatLabelDate(input.date ?? new Date());
+  const location = (input.location ?? "").trim().toUpperCase();
 
   const items = input.items
     .map((entry) => {
@@ -109,6 +115,7 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
   // The built-in PDF fonts only cover Latin-1; anything else would print as garbage
   const allText = [
     palletId,
+    location,
     ...items.flatMap((entry) => [entry.name, ...entry.sizes, ...entry.qtys.filter(Boolean)])
   ];
   for (const text of allText) {
@@ -167,10 +174,13 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
 
   // QR code, pallet ID and date sit together at the bottom of the page: stacked in portrait,
   // side by side in landscape
+  // with the location (if any) on its own small line just above the date
   const qrBlockHeight = QR_PT + palletPt * LINE_EM;
+  const locationHeight = location ? LOCATION_PT * LINE_EM : 0;
+  const dateBlockHeight = locationHeight + DATE_PT * LINE_EM;
   const bottomHeight = landscape
-    ? Math.max(qrBlockHeight, DATE_PT * LINE_EM)
-    : qrBlockHeight + GAP_PT + DATE_PT * LINE_EM;
+    ? Math.max(qrBlockHeight, dateBlockHeight)
+    : qrBlockHeight + GAP_PT + dateBlockHeight;
   const bottomTop = pageH - MARGIN - bottomHeight;
 
   // Space for the items: between the top margin and the bottom block, minus the gap below
@@ -302,13 +312,20 @@ export async function buildLabelPdf(input: LabelInput): Promise<Blob> {
 
   drawLine(palletId, palletPt, "left");
 
+  const dateAlign = landscape ? "right" : "center";
   if (landscape) {
-    y = pageH - MARGIN - DATE_PT * LINE_EM;
-    drawLine(date, DATE_PT, "right");
+    y = pageH - MARGIN - dateBlockHeight;
   } else {
     y += GAP_PT;
-    drawLine(date, DATE_PT, "center");
   }
+
+  if (location) {
+    doc.setFont("helvetica", "italic");
+    drawLine(location, fit(location, LOCATION_PT), dateAlign);
+    doc.setFont("helvetica", "bold");
+  }
+
+  drawLine(date, DATE_PT, dateAlign);
 
   return doc.output("blob");
 }
