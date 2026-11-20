@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AppHeader from "@/components/AppHeader";
 import { areaLabel } from "@/lib/areas";
 import { buildStockCheckLabelPdf } from "@/lib/stockCheckLabelPdf";
@@ -10,11 +10,20 @@ type Row = {
   location: string;
   pallet_id?: string | null;
   area?: string;
+  cat?: string;
   item: string;
   size: string;
   qty: number | null;
   stock_check: boolean | null;
   needs_label?: boolean | null;
+};
+
+type CatalogProduct = {
+  id: number;
+  item: string;
+  size: string;
+  diam_value: number;
+  length_value: number;
 };
 
 export default function Page() {
@@ -27,6 +36,10 @@ export default function Page() {
   const [newLabelRows, setNewLabelRows] = useState<Row[] | null>(null);
   const [labelsBuilding, setLabelsBuilding] = useState(false);
   const [labelsError, setLabelsError] = useState("");
+
+  // Catalogue products per category, for the item/size dropdowns
+  const [catalog, setCatalog] = useState<Record<string, CatalogProduct[]>>({});
+  const catalogRequested = useRef(new Set<string>());
 
   /* ==============================
      LOAD OUTSTANDING / CHECKED
@@ -206,6 +219,135 @@ export default function Page() {
       alert("Could not update location");
       loadBoth();
     }
+  };
+
+  /* ==============================
+     ITEM / SIZE EDIT
+     (re-points the line at another existing catalogue product)
+  ============================== */
+
+  useEffect(() => {
+    const cats = new Set(
+      [...outstandingRows, ...checkedRows]
+        .map((row) => row.cat)
+        .filter((cat): cat is string => !!cat && !catalogRequested.current.has(cat))
+    );
+
+    cats.forEach(async (cat) => {
+      catalogRequested.current.add(cat);
+      const res = await fetch(`/api/catalog-products?cat=${encodeURIComponent(cat)}`);
+      const data = await res.json();
+      setCatalog((prev) => ({ ...prev, [cat]: data.products || [] }));
+    });
+  }, [outstandingRows, checkedRows]);
+
+  const updateRowLocally = (id: number, patch: Partial<Row>) => {
+    const apply = (row: Row) => (row.id === id ? { ...row, ...patch } : row);
+
+    setOutstandingRows((prev) => prev.map(apply));
+    setCheckedRows((prev) => prev.map(apply));
+    setNewLabelRows((prev) => (prev ? prev.map(apply) : prev));
+  };
+
+  const itemOptions = (row: Row) => {
+    const products = row.cat ? catalog[row.cat] : undefined;
+    if (!products) return null;
+
+    return [...new Set(products.map((p) => p.item))].sort();
+  };
+
+  const sizeOptions = (row: Row) => {
+    const products = row.cat ? catalog[row.cat] : undefined;
+    if (!products) return null;
+
+    const sizes = products
+      .filter((p) => p.item === row.item)
+      .sort(
+        (a, b) =>
+          a.diam_value - b.diam_value ||
+          a.length_value - b.length_value ||
+          a.size.localeCompare(b.size)
+      )
+      .map((p) => p.size);
+
+    return [...new Set(sizes)];
+  };
+
+  const saveProduct = async (row: Row, item: string, size: string) => {
+    const product = row.cat
+      ? catalog[row.cat]?.find((p) => p.item === item && p.size === size)
+      : undefined;
+
+    if (!product) {
+      // No product with this item in the current size yet - wait for a size pick
+      updateRowLocally(row.id, { item, size: "" });
+      return;
+    }
+
+    updateRowLocally(row.id, { item, size });
+
+    const res = await fetch("/api/change-product", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: row.id, productId: product.id })
+    });
+
+    if (!res.ok) {
+      alert("Could not update item / size");
+      loadBoth();
+      if (newLabelRows) loadNewLabels();
+    }
+  };
+
+  const renderItemSizeCells = (row: Row) => {
+    const items = itemOptions(row);
+    const sizes = sizeOptions(row);
+
+    if (!items || !sizes) {
+      return (
+        <>
+          <td style={getItemStyle(row.item)}>{row.item}</td>
+          <td>{row.size}</td>
+        </>
+      );
+    }
+
+    return (
+      <>
+        <td>
+          <select
+            value={row.item}
+            onChange={(e) => saveProduct(row, e.target.value, row.size)}
+            aria-label={`Edit item for ${row.pallet_id ?? row.location}`}
+            className="control"
+            style={getItemStyle(row.item)}
+          >
+            {items.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </td>
+        <td>
+          <select
+            value={row.size}
+            onChange={(e) => saveProduct(row, row.item, e.target.value)}
+            aria-label={`Edit size for ${row.pallet_id ?? row.location}`}
+            className="control"
+          >
+            {!sizes.includes(row.size) && (
+              <option value={row.size}>{row.size || "Pick size"}</option>
+            )}
+            {sizes.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </td>
+      </>
+    );
   };
 
   const printNewLabels = async () => {
@@ -509,8 +651,7 @@ export default function Page() {
                           className="control"
                         />
                       </td>
-                      <td style={getItemStyle(row.item)}>{row.item}</td>
-                      <td>{row.size}</td>
+                      {renderItemSizeCells(row)}
                       <td>{row.qty?.toLocaleString()}</td>
                       <td>
                         <input
@@ -602,8 +743,7 @@ export default function Page() {
                           className="control"
                         />
                       </td>
-                      <td style={getItemStyle(row.item)}>{row.item}</td>
-                      <td>{row.size}</td>
+                      {renderItemSizeCells(row)}
                       <td>{row.qty?.toLocaleString()}</td>
                       <td>
                         <input

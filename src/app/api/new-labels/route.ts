@@ -7,7 +7,7 @@ export async function GET() {
   const { data, error } = await fetchAllPages((from, to) =>
     supabase
       .from("stock_flat")
-      .select("id, location, pallet_id, area, item, size, qty")
+      .select("id, location, pallet_id, area, cat, item, size, qty")
       .eq("needs_label", true)
       .order("location", { ascending: true, nullsFirst: false })
       .order("pallet_id", { ascending: true })

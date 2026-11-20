@@ -13,7 +13,7 @@ export async function GET(req: Request) {
   const { data, error } = await fetchAllPages((from, to) => {
     let query = supabase
       .from("stock_flat")
-      .select("id, location, pallet_id, area, item, size, qty, needs_label");
+      .select("id, location, pallet_id, area, cat, item, size, qty, needs_label");
 
     query =
       status === "checked"
