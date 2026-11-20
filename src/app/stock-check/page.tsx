@@ -299,6 +299,28 @@ export default function Page() {
     }
   };
 
+  const saveQty = async (id: number, value: string) => {
+    const qty = Number(value);
+
+    if (value.trim() === "" || !Number.isInteger(qty) || qty < 0) {
+      alert("Qty must be a whole number, 0 or more");
+      loadBoth();
+      return;
+    }
+
+    const res = await fetch("/api/change-qty", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, qty })
+    });
+
+    if (!res.ok) {
+      alert("Could not update qty");
+      loadBoth();
+      if (newLabelRows) loadNewLabels();
+    }
+  };
+
   const renderItemSizeCells = (row: Row) => {
     const items = itemOptions(row);
     const sizes = sizeOptions(row);
@@ -652,7 +674,23 @@ export default function Page() {
                         />
                       </td>
                       {renderItemSizeCells(row)}
-                      <td>{row.qty?.toLocaleString()}</td>
+                      <td className="pallet-id">
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={row.qty ?? ""}
+                          onChange={(e) =>
+                            updateRowLocally(row.id, {
+                              qty: e.target.value === "" ? null : Number(e.target.value)
+                            })
+                          }
+                          onBlur={(e) => saveQty(row.id, e.target.value)}
+                          aria-label={`Edit qty for ${row.pallet_id ?? row.location}`}
+                          className="control"
+                          style={{ width: 90 }}
+                        />
+                      </td>
                       <td>
                         <input
                           type="checkbox"
@@ -744,7 +782,23 @@ export default function Page() {
                         />
                       </td>
                       {renderItemSizeCells(row)}
-                      <td>{row.qty?.toLocaleString()}</td>
+                      <td className="pallet-id">
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={row.qty ?? ""}
+                          onChange={(e) =>
+                            updateRowLocally(row.id, {
+                              qty: e.target.value === "" ? null : Number(e.target.value)
+                            })
+                          }
+                          onBlur={(e) => saveQty(row.id, e.target.value)}
+                          aria-label={`Edit qty for ${row.pallet_id ?? row.location}`}
+                          className="control"
+                          style={{ width: 90 }}
+                        />
+                      </td>
                       <td>
                         <input
                           type="checkbox"
